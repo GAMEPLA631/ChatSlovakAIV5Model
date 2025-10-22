@@ -3,640 +3,418 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatSlovak AI V5 Model - Slovensky Chatbot</title>
+    <title>ChatSlovak AI V5 Model</title>
     <!-- Načítanie Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Nastavenie fontu Inter a Tailwind farieb -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        
-        /* Vlastné štýly pre "sklený" efekt a tmavé pozadie */
+        /* Nastavenie písma Inter a tmavého pozadia */
         body {
-            background-color: #10101e; /* Veľmi tmavá nočná modrá */
-            background-image: linear-gradient(135deg, #10101e 0%, #08080f 100%);
             font-family: 'Inter', sans-serif;
-            min-height: 100vh;
+            color: #e4e4e7;
             display: flex;
-            overflow: hidden; 
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            
+            /* Tmavé pozadie s modrými a fialovými prechodmi pre moderný vzhľad */
+            background-image: url('https://placehold.co/1920x1080/1a1a2e/ffffff?text=Abstract+Dark+UI'); 
+            background-size: cover; 
+            background-position: center;
+            background-attachment: fixed;
         }
-        /* Sklený efekt pre bočný panel */
-        .glass-sidebar {
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            background-color: rgba(255, 255, 255, 0.05); 
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            transition: transform 0.3s ease-in-out;
+
+        /* Štýl pre sklenený efekt (Frosted Glass) */
+        .glass-container {
+            /* Mierne svetlejšie, pretože pozadie je už tmavé */
+            background-color: rgba(0, 0, 0, 0.4); 
+            backdrop-filter: blur(15px) saturate(180%);
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
-        /* Sklený efekt pre karty */
-        .glass-card {
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            background-color: rgba(30, 30, 45, 0.7); 
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            transition: all 0.2s ease-in-out;
+
+        /* Scrollbar styling for a cleaner look */
+        .chat-area::-webkit-scrollbar {
+            width: 8px;
         }
-        .glass-card:hover {
-            background-color: rgba(40, 40, 55, 0.8);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-        /* Sklený efekt pre vstup */
-        .glass-input-container {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            background-color: rgba(30, 30, 45, 0.85); 
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        /* Štýl pre scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-            background: rgba(255, 255, 255, 0.15); 
+
+        .chat-area::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
             border-radius: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
 
-        /* Mobilné menu tlačidlo */
-        #menu-button { z-index: 50; }
-        .modal-bg {
-            background-color: rgba(16, 16, 30, 0.8);
-            backdrop-filter: blur(5px);
+        .chat-area::-webkit-scrollbar-track {
+            background: transparent;
         }
-
-        /* Loading animation CSS - Premýšľam... */
-        .dot-flashing {
-            display: flex;
-            align-items: center;
-        }
-        .dot-flashing span {
-            margin-right: 8px;
-            font-weight: 600;
-            color: #f87171;
-        }
-        .dot-flashing div {
+        
+        /* Loading animation for the "Typing..." state */
+        .dot-pulse {
             position: relative;
             width: 10px;
             height: 10px;
-            border-radius: 5px;
-            background-color: #f87171; 
-            color: #f87171;
-            animation: dotFlashing 1s infinite linear alternate;
-            animation-delay: 0.5s;
+            border-radius: 50%;
+            background-color: #a8b0e0;
+            animation: dotPulse 1s ease-in-out infinite;
         }
-        .dot-flashing div::before, .dot-flashing div::after {
+
+        .dot-pulse::before, .dot-pulse::after {
             content: '';
-            display: inline-block;
             position: absolute;
-            top: 0;
             width: 10px;
             height: 10px;
-            border-radius: 5px;
-            background-color: #f87171;
-            color: #f87171;
-            animation: dotFlashing 1s infinite linear alternate;
+            border-radius: 50%;
+            background-color: #a8b0e0;
+            top: 0;
         }
-        .dot-flashing div::before {
+
+        .dot-pulse::before {
             left: -15px;
-            animation-delay: 0s;
+            animation: dotPulseBefore 1s ease-in-out infinite;
         }
-        .dot-flashing div::after {
+
+        .dot-pulse::after {
             left: 15px;
-            animation-delay: 1s;
+            animation: dotPulseAfter 1s ease-in-out infinite;
         }
-        @keyframes dotFlashing {
-            0% { background-color: #f87171; }
-            50%, 100% { background-color: rgba(248, 113, 113, 0.2); }
+
+        @keyframes dotPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+        }
+
+        @keyframes dotPulseBefore {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+        }
+
+        @keyframes dotPulseAfter {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+        }
+
+        /* --- NOVÉ: Animácie pre stránku a chat --- */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* Trieda pre animáciu načítania hlavného kontajnera */
+        .animate-fadeInUp {
+            animation: fadeInUp 0.7s ease-out;
+        }
+
+        /* Trieda pre animáciu správ v chate (pridaná priamo v JS/HTML) */
+        .message-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        /* --- Koniec nových animácií --- */
     </style>
 </head>
-<body class="text-white">
+<body>
 
-    <!-- Tlačidlo pre mobilné menu (Hamburger) -->
-    <button id="menu-button" class="md:hidden fixed top-4 left-4 p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition duration-150 z-50">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
-        </svg>
-    </button>
-
-    <!-- Ľavý Bočný Panel (Sidebar) - Len pre estetiku, neimplementujeme ukladanie histórie do Firestore v tomto príklade -->
-    <aside id="sidebar" class="glass-sidebar fixed md:static inset-y-0 left-0 w-64 p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 md:shadow-xl custom-scrollbar z-40">
-        <!-- Sekcia Hore -->
-        <div class="space-y-4">
-            <!-- Tlačidlo Nový Príbeh/Chat -->
-            <button class="w-full flex items-center justify-center space-x-2 p-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg transition duration-200" onclick="showHomeScreen()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+    <!-- Pridaná trieda animate-fadeInUp pre animáciu pri načítaní stránky -->
+    <div class="glass-container w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl p-6 md:p-8 m-4 animate-fadeInUp">
+        
+        <!-- Hlavička ChatSlovak AI -->
+        <header class="mb-4 pb-4 border-b border-white/20">
+            <h1 class="text-3xl font-extrabold text-blue-300 flex items-center">
+                <svg class="w-8 h-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 17h18M5 17h14L12 3 5 17z" />
                 </svg>
-                <span>Nový Chat/Príbeh</span>
-            </button>
-            
-            <!-- Konverzácie (príbehy) -->
-            <div class="mt-6 text-sm space-y-2">
-                <p class="text-gray-500 px-2 uppercase text-xs font-bold">História (Simulovaná)</p>
-                <a href="#" class="flex items-center p-2 rounded-lg text-gray-400 hover:bg-gray-700 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2m-3 7h3m-3 4h3m-6-4h.01M10 16h.01" />
-                    </svg>
-                    Posledný príbeh
-                </a>
-            </div>
-        </div>
-
-        <!-- Sekcia Dole (Nastavenia) -->
-        <div class="border-t border-gray-700 pt-4 space-y-2 text-sm">
-            <p class="text-xs text-gray-500 p-2">Používateľ ID: <span id="user-id-display">Nahrávam...</span></p>
-        </div>
-    </aside>
-
-    <!-- Hlavný Obsah (Main Content) -->
-    <main id="main-content" class="flex-1 flex flex-col items-center justify-between p-4 md:p-8 overflow-y-auto custom-scrollbar">
-
-        <!-- Horný Názov -->
-        <header class="w-full text-center mb-8">
-            <h1 class="text-4xl font-extrabold tracking-tight text-white/90">ChatSlovak AI V5 Model</h1>
-            <p class="text-md text-red-400 font-medium">— AI, ktorá ti číta odpovede nahlas —</p>
+                ChatSlovak AI <span class="text-lg font-light ml-2 text-white/70">V5 Model</span>
+            </h1>
+            <p class="text-sm text-white/50">Profesionálny konverzačný partner. Píše masívne desivé príbehy. (Skúste napísať 'napíš mi hororový príbeh').</p>
         </header>
 
-        <!-- Zobrazenie obsahu (Home/Chat) -->
-        <div id="content-display" class="w-full max-w-4xl flex-1 flex flex-col justify-center items-center">
-            
-            <!-- Domovská obrazovka (Home Screen) -->
-            <div id="home-screen" class="w-full text-center space-y-12">
-                
-                <h2 class="text-2xl font-semibold text-white/80 mt-12 mb-8">Ahoj! Poďme na konverzáciu alebo na rozsiahly príbeh.</h2>
-                
-                <!-- Sekcie Kariet / Kategórie -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    
-                    <!-- Karta 1: Príbeh -->
-                    <div class="glass-card p-4 rounded-xl shadow-lg hover:shadow-red-900/50 cursor-pointer" onclick="setInputPrompt('Vytvor masívne desivý, Lovecraftovský hororový príbeh o opustenom majáku na Slovensku. Intenzita 10/10.')">
-                        <div class="flex items-center justify-center mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                        <h3 class="font-bold text-lg mb-1 text-red-300">Generovanie Príbehu</h3>
-                        <p class="text-sm text-gray-300">Horor, Thriller, Sci-Fi. Pýtaj si dlhé a detailné výstupy.</p>
-                    </div>
-                    
-                    <!-- Karta 2: Konverzácia/Fakty -->
-                    <div class="glass-card p-4 rounded-xl shadow-lg hover:shadow-blue-500/50 cursor-pointer" onclick="setInputPrompt('Aké sú najnovšie fakty o stave umelej inteligencie? (vyhľadaj na internete)')">
-                        <div class="flex items-center justify-center mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 4v-4z" />
-                            </svg>
-                        </div>
-                        <h3 class="font-bold text-lg mb-1 text-blue-300">Normálna Konverzácia</h3>
-                        <p class="text-sm text-gray-300">Všeobecné otázky, fakty, pokec. Používa internetové dáta.</p>
-                    </div>
-                    
-                    <!-- Karta 3: Kategórie Modal -->
-                    <div class="glass-card p-4 rounded-xl shadow-lg hover:shadow-green-500/50 cursor-pointer" onclick="toggleCategoriesModal(true)">
-                        <div class="flex items-center justify-center mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                            </svg>
-                        </div>
-                        <h3 class="font-bold text-lg mb-1 text-green-300">Prehliadať Žánre</h3>
-                        <p class="text-sm text-gray-300">Inšpirácia pre generovanie dlhých textov a príbehov.</p>
-                    </div>
-                    
+        <!-- Tlačidlá Funkcií -->
+        <div class="flex justify-start mb-4">
+            <button id="tts-toggle" onclick="toggleSpeaking()" class="flex items-center text-sm font-medium py-2 px-4 rounded-full transition duration-200 bg-gray-700 hover:bg-gray-600 text-white shadow-md">
+                Hlas: Vypnutý
+                <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414zM10.15 4.54a2 2 0 013.7 0M8 8a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 12h.01M19 12h.01" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Oblasť Správ -->
+        <div id="chat-messages" class="chat-area flex-grow overflow-y-auto space-y-4 pr-2 mb-4">
+            <!-- Úvodná správa -->
+            <div class="flex justify-start">
+                <!-- Pridaná trieda message-enter pre animáciu prvej správy -->
+                <div class="bg-blue-600/50 glass-container p-3 rounded-xl rounded-tl-none max-w-3xl shadow-lg message-enter">
+                    <p class="font-bold text-blue-200">ChatSlovak AI V5 Model</p>
+                    <p class="text-white mt-1">Dobrý deň. Som pripravený na konverzáciu. Povedzte mi, ako vám môžem pomôcť, alebo mi zadajte príkaz 'napíš mi hororový príbeh'.</p>
                 </div>
             </div>
-
-            <!-- Oblasť Četu (Chat Area) -->
-            <!-- Zmenená štruktúra: ID chat-area teraz slúži ako obal (wrapper), scrollbar a medzery sú na #chat-messages. -->
-            <div id="chat-area" class="w-full h-full flex flex-col" style="display: none;">
-                <div id="chat-messages" class="flex-1 custom-scrollbar space-y-4 overflow-y-auto">
-                    <!-- Úvodná správa - Presunutá do #chat-messages pre správny flow -->
-                    <div class="flex justify-start">
-                        <div class="p-4 rounded-xl glass-card text-sm max-w-3xl">
-                            <p class="font-bold text-red-400 mb-1">ChatSlovak AI V5 Model</p>
-                            <p>Systém je inicializovaný. Som pripravený viesť konverzáciu, generovať príbehy, alebo ti nájsť fakty online.</p>
-                        </div>
-                    </div>
-                    <!-- Tu sa budú zobrazovať dynamické správy -->
-                </div>
-            </div>
-
+            <!-- Správy budú pridané sem -->
         </div>
 
-        <!-- Vstupný Panel -->
-        <div class="w-full max-w-4xl mt-6">
-            <div class="glass-input-container p-3 rounded-2xl flex items-center shadow-2xl">
-                <textarea id="prompt-input" rows="1" class="flex-1 bg-transparent p-2 text-white placeholder-gray-400 resize-none outline-none custom-scrollbar" placeholder="Napíš požiadavku (príbeh) alebo otázku (konverzácia)..."></textarea>
-                
-                <button id="send-button" class="ml-3 p-3 bg-red-600 hover:bg-red-700 rounded-xl transition duration-200 disabled:opacity-50" onclick="generateResponse()" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 text-center mt-2">ChatSlovak AI V5.0 - Pokročilý generatívny model pre slovenský jazyk.</p>
+        <!-- Vstupná Oblasť -->
+        <div class="flex space-x-3 glass-container p-3 rounded-xl">
+            <!-- Odstránený 'disabled' atribút -->
+            <input type="text" id="chat-input" placeholder="Napíšte svoju správu..." class="flex-grow p-3 rounded-lg bg-white/10 text-white border-none focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-white/50" onkeydown="if(event.key === 'Enter') sendMessage()">
+            <!-- Odstránený 'disabled' atribút -->
+            <button id="send-button" onclick="sendMessage()" class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md flex items-center justify-center disabled:opacity-50">
+                Odoslať
+                <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
         </div>
-    </main>
-    
-    <!-- KATEGÓRIE MODAL -->
-    <div id="categories-modal" class="fixed inset-0 z-50 modal-bg hidden items-center justify-center p-4" onclick="toggleCategoriesModal(false)">
-        <div class="glass-card w-full max-w-5xl h-[80vh] p-6 rounded-3xl flex flex-col shadow-2xl" onclick="event.stopPropagation()">
-            <!-- Hlavička Modalu -->
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-3xl font-bold text-green-300">Žánre a Inšpirácie</h3>
-                <button class="p-2 text-gray-400 hover:text-white" onclick="toggleCategoriesModal(false)">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Telo Modalu s Kategóriami -->
-            <div id="category-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 content-start">
-                <!-- Kategórie sa sem načítajú pomocou JS -->
-            </div>
-            
-            <p class="text-center text-sm text-gray-500 mt-4">Kliknite na kategóriu pre vloženie požiadavky do poľa.</p>
-        </div>
+        
     </div>
 
-
-    <!-- Firebase a API Script -->
+    <!-- API Skripty (Firebase odstránené) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Konfigurácia pre prehliadačové prostredie ---
+        // Generovanie lokálneho ID používateľa
+        const userId = crypto.randomUUID(); 
+        
+        // --- Konštanty pre AI ---
+        const API_KEY = "AIzaSyDdiCiIfr2gLtsRMENBkWG1hJo6N1uij7w";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        
+        // --- Funkcie pre Hlasové Čítanie (TTS) ---
+        let isSpeakingEnabled = false;
+        
+        // Nastaví ikonu a stav TTS
+        function updateTtsButton() {
+            const ttsButton = document.getElementById('tts-toggle');
+            if (isSpeakingEnabled) {
+                ttsButton.classList.remove('bg-gray-700', 'hover:bg-gray-600');
+                ttsButton.classList.add('bg-blue-500', 'hover:bg-blue-400');
+                ttsButton.innerHTML = `Hlas: Zapnutý <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414z" /></svg>`;
+            } else {
+                ttsButton.classList.remove('bg-blue-500', 'hover:bg-blue-400');
+                ttsButton.classList.add('bg-gray-700', 'hover:bg-gray-600');
+                ttsButton.innerHTML = `Hlas: Vypnutý <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414zM10.15 4.54a2 2 0 013.7 0M8 8a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 12h.01M19 12h.01" /></svg>`;
+            }
+        }
+        
+        window.toggleSpeaking = function() {
+            isSpeakingEnabled = !isSpeakingEnabled;
+            updateTtsButton();
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+            if (isSpeakingEnabled) {
+                speakText("Hlasová funkcia zapnutá.");
+            }
+        }
 
-        // Global UI Elements
-        const promptInput = document.getElementById('prompt-input');
+        function speakText(text) {
+            if (isSpeakingEnabled && 'speechSynthesis' in window) {
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                }
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'sk-SK';
+                
+                // Načítanie hlasov a pokus o nájdenie slovenskej (sk) alebo českej (cs) hlasu
+                const voices = window.speechSynthesis.getVoices();
+                const slovakVoice = voices.find(voice => voice.lang.startsWith('sk'));
+                const czechVoice = voices.find(voice => voice.lang.startsWith('cs'));
+                const englishVoice = voices.find(voice => voice.lang.startsWith('en'));
+
+                if (slovakVoice) {
+                    utterance.voice = slovakVoice;
+                } else if (czechVoice) {
+                    utterance.voice = czechVoice;
+                } else if (englishVoice) {
+                    // Fallback to a common voice
+                    utterance.voice = englishVoice;
+                }
+                
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        
+        // Zavolajte pri načítaní pre správnu ikonu
+        updateTtsButton();
+
+        // --- Funkcie pre Chat UI ---
+        const chatArea = document.getElementById('chat-messages');
+        const inputElement = document.getElementById('chat-input');
         const sendButton = document.getElementById('send-button');
-        const chatArea = document.getElementById('chat-messages'); // Message container where all content is appended
-        const homeScreen = document.getElementById('home-screen');
-        const contentDisplay = document.getElementById('content-display');
-        const sidebar = document.getElementById('sidebar');
-        const menuButton = document.getElementById('menu-button');
-        const categoriesModal = document.getElementById('categories-modal');
-        const categoryList = document.getElementById('category-list');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const synth = window.speechSynthesis;
 
-        // API a Firebase konštanty
-        const apiKey = "AIzaSyDdiCiIfr2gLtsRMENBkWG1hJo6N1uij7w"; // Kľúč bude poskytnutý prostredím automaticky.
-        const GEMINI_MODEL = 'gemini-2.5-flash-preview-09-2025';
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-        
-        // Globálne Firebase inštancie
-        let db;
-        let auth;
-        let currentUserId = null;
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Zoznam kategórií
-        const storyCategories = [
-            "Horor (Psychologický)", "Sci-Fi (Dystopia)", "Fantasy (Vysoká mágia)", "Romantika (Historická)",
-            "Thriller (Špionážny)", "Detektívka (Hard-boiled)", "Horor (Lovecraftovský)", "Post-apokalypsa",
-            "Kyberpunk", "Komédia (Čierna)", "Cestovanie časom", "Mýtus a Legenda (Slovanské)",
-            "Veda (Fakt-Fiction)", "Dráma (Súčasná)", "Noir", "Vojnový",
-            "Gotický", "Satira", "Slovenský Folklór", "Dobrodružné",
-            "Young Adult (Fantasy)", "Urban Fantasy", "Krimi", "Fantasy (Nízka mágia)",
-            "Horor (Zombies)", "Sci-Fi (Vesmírna opera)", "Romantika (Súčasná)", "Paranormálna Romantika"
-        ];
-        
-        /**
-         * 1. FIREBASE A AUTENTIFIKÁCIA
-         */
-        async function initializeAppAndAuth() {
-            if (firebaseConfig) {
-                try {
-                    const app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
+        function createMessageElement(sender, text, isStory = false) {
+            const alignment = sender === 'user' ? 'justify-end' : 'justify-start';
+            const bgColor = sender === 'user' ? 'bg-blue-500/80' : 'bg-blue-600/50';
+            const senderName = sender === 'user' ? 'Vy' : 'ChatSlovak AI V5 Model';
+            const roundStyle = sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none';
+            const storyStyle = isStory ? 'border border-red-500 shadow-xl' : '';
+            const textColor = isStory ? 'text-red-200' : (sender === 'user' ? 'text-white' : 'text-white');
 
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            currentUserId = user.uid;
-                            userIdDisplay.textContent = currentUserId;
-                        } else {
-                            currentUserId = 'Neautorizovaný';
-                            userIdDisplay.textContent = 'Neautorizovaný';
-                        }
-                    });
-
-                } catch (error) {
-                    console.error("Chyba pri inicializácii Firebase alebo autentifikácii:", error);
-                    userIdDisplay.textContent = 'Chyba!';
-                }
-            } else {
-                console.warn("Konfigurácia Firebase chýba. Používam lokálne UUID.");
-                currentUserId = crypto.randomUUID();
-                userIdDisplay.textContent = `Demo ID: ${currentUserId.substring(0, 8)}...`;
-            }
-        }
-
-        /**
-         * 2. UTILITY FUNKCIE
-         */
-        
-        // Exponenciálny backoff pre fetch hovory
-        async function exponentialBackoffFetch(url, options, maxRetries = 5) {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.status === 429 && i < maxRetries - 1) {
-                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        continue;
-                    }
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(`API Chyba: ${response.status} - ${errorData.error?.message || response.statusText}`);
-                    }
-                    return response.json();
-                } catch (error) {
-                    if (i === maxRetries - 1) throw error;
-                    // Pokračuje v slučke pre opakovanie
-                }
-            }
-        }
-
-        // Ikony pre TTS
-        function getSpeakerIcon(speaking) {
-            if (speaking) {
-                return `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400 animate-pulse" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.383 14.074l-.24.081a3 3 0 01-3.14-.146 3 3 0 01-1.293-2.31 3 3 0 01.373-1.463c.27-.37.587-.696.945-.968.384-.3.79-.537 1.207-.714.417-.177.85-.292 1.285-.365L9 8.001h1l-.383 6.073zM10 2a8 8 0 100 16 8 8 0 000-16zM6 9.5a.5.5 0 111 0 .5.5 0 01-1 0zm7 0a.5.5 0 111 0 .5.5 0 01-1 0z" clip-rule="evenodd" /></svg>`;
-            } else {
-                return `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-300 hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9l1.414-1.414a9 9 0 010 12.728l-1.414-1.414m-12.728.707l1.414-1.414M6.464 15.536L5.05 16.95A9 9 0 0017.68 4.318l-1.414 1.414m-1.414 1.414l-1.414 1.414M12 4v16M4 12h16" /></svg>`;
-            }
-        }
-        
-        /**
-         * 3. TTS FUNKCIONALITA
-         */
-        window.readText = function(textElement, buttonElement) {
-            const textToSpeak = textElement.textContent;
-            if (!synth) { console.error("Prehliadač nepodporuje Text-to-Speech."); return; }
-
-            if (synth.speaking) {
-                synth.cancel(); 
-                buttonElement.innerHTML = getSpeakerIcon(false);
-                return;
-            }
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${alignment}`;
             
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            // Nastavenie jazyka na slovenčinu. Ak nie je k dispozícii, použije predvolený.
-            utterance.lang = 'sk-SK'; 
+            // --- NOVÉ: Pridaná trieda message-enter pre animáciu správy ---
+            messageDiv.innerHTML = `
+                <div class="${bgColor} glass-container p-4 rounded-xl ${roundStyle} max-w-3xl shadow-lg ${storyStyle} message-enter">
+                    <p class="font-bold text-blue-200">${senderName}</p>
+                    <div class="${textColor} mt-1 whitespace-pre-wrap">${text}</div>
+                </div>
+            `;
+            // --- Koniec NOVÉHO kódu ---
 
-            utterance.onend = () => { buttonElement.innerHTML = getSpeakerIcon(false); };
-            utterance.onerror = (e) => console.error('Chyba pri čítaní:', e);
-            
-            synth.speak(utterance);
-            buttonElement.innerHTML = getSpeakerIcon(true);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
         }
 
-        /**
-         * 4. GENERATÍVNE API VOLANIE
-         */
-        async function geminiApiCall(prompt) {
-            const isStoryRequest = prompt.length > 80 || 
-                                   prompt.toLowerCase().includes('príbeh') || 
-                                   prompt.toLowerCase().includes('vytvor') ||
-                                   prompt.toLowerCase().includes('generuj');
+        function addLoadingIndicator(messageId, storyMode) {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = messageId;
+            loadingDiv.className = 'flex justify-start';
+            loadingDiv.innerHTML = `
+                <div class="bg-gray-700/50 glass-container p-4 rounded-xl rounded-tl-none max-w-3xl shadow-lg flex items-center message-enter">
+                    <div class="dot-pulse mr-4"></div>
+                    <p class="text-white/70">${storyMode ? 'Generujem masívne hororový príbeh...' : 'ChatSlovak AI premýšľa...'}</p>
+                </div>
+            `;
+            chatArea.appendChild(loadingDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return loadingDiv;
+        }
 
-            // System instruction je v slovenčine a prispôsobený na základe požiadavky
-            const systemPrompt = isStoryRequest 
-                ? "Si ChatSlovak AI V5, expert na generovanie dlhých, detailných a pútavých príbehov alebo esejí v slovenčine. Uisti sa, že tvoj výstup je v slovenčine."
-                : "Si ChatSlovak AI V5. Viedni normálnu, priateľskú a vecnú konverzáciu v slovenčine. Ak odpovedáš na fakty, použi informácie z Google vyhľadávania. Odpovedaj stručne, ale komplexne.";
+        function removeLoadingIndicator(messageId) {
+            const loadingDiv = document.getElementById(messageId);
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
 
+        // --- LLM API Handling ---
+        
+        async function callGeminiAPI(prompt, systemPrompt, tools, retries = 0) {
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                // Ak nie je požiadavka na príbeh, použijeme Google Search pre aktuálne fakty
-                tools: isStoryRequest ? [] : [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
             };
 
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
-
-            const result = await exponentialBackoffFetch(API_URL, options);
-
-            const candidate = result.candidates?.[0];
-            const text = candidate?.content?.parts?.[0]?.text || "Prepáč, nepodarilo sa mi vygenerovať odpoveď. Skús preformulovať otázku.";
-            const groundingMetadata = candidate?.groundingMetadata;
-
-            return { text, groundingMetadata };
-        }
-
-
-        /**
-         * 5. HLAVNÁ LOGIKA CHATU
-         */
-
-        // Funkcia na povolenie/zakázanie tlačidla odoslať
-        promptInput.addEventListener('input', () => {
-            sendButton.disabled = promptInput.value.trim() === '';
-            // Auto-resize textarea
-            promptInput.style.height = 'auto';
-            promptInput.style.height = (promptInput.scrollHeight) + 'px';
-        });
-
-        // Event listener pre mobilné menu
-        menuButton.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-        });
-
-        // Ukážeme hlavnú obrazovku a skryjeme chat
-        window.showHomeScreen = function() {
-            homeScreen.style.display = 'block';
-            document.getElementById('chat-area').style.display = 'none';
-            contentDisplay.classList.add('justify-center'); 
-            if (window.innerWidth < 768) {
-                sidebar.classList.add('-translate-x-full');
+            if (tools && tools.length > 0) {
+                payload.tools = tools;
             }
-            if (synth.speaking) synth.cancel(); // Zastaví čítanie
-        }
-        
-        // Funkcia na nastavenie promptu z kategórie
-        window.setInputPrompt = function(text) {
-            promptInput.value = text;
-            sendButton.disabled = false; 
-            promptInput.dispatchEvent(new Event('input')); 
-            toggleCategoriesModal(false); 
-            homeScreen.style.display = 'none';
-            document.getElementById('chat-area').style.display = 'flex';
-            contentDisplay.classList.remove('justify-center');
-            promptInput.focus();
-        }
-
-        // Funkcia na prepínanie Modalu Kategórií
-        window.toggleCategoriesModal = function(show) {
-            if (show) {
-                categoriesModal.style.display = 'flex';
-                renderCategories(); 
-            } else {
-                categoriesModal.style.display = 'none';
-            }
-        }
-        
-        // Funkcia na vykreslenie kategórií
-        function renderCategories() {
-            categoryList.innerHTML = ''; 
             
-            storyCategories.forEach(category => {
-                const isStory = category.toLowerCase().includes('príbeh') || category.toLowerCase().includes('horor');
-                const colorClass = isStory ? 'bg-red-900/40 border-red-500/50 hover:bg-red-800/60 text-red-300' : 'bg-green-900/30 border-green-500/50 hover:bg-green-800/50 text-green-300';
-                
-                const promptText = isStory 
-                    ? `Vytvor masívne detailný ${category} príbeh. Daj si záležať na popise prostredia a postáv.`
-                    : `Vytvor krátku esej alebo analýzu na tému: ${category}.`;
-
-                const button = document.createElement('button');
-                button.className = `p-3 text-sm font-medium rounded-lg text-left transition duration-150 border ${colorClass} shadow-md`;
-                button.textContent = category;
-                button.onclick = () => setInputPrompt(promptText);
-                
-                categoryList.appendChild(button);
-            });
-        }
-        
-        // Funkcia na generovanie odpovede (Hlavný bod)
-        window.generateResponse = async function() {
-            const prompt = promptInput.value.trim();
-            if (!prompt) return;
-
-            if (synth.speaking) synth.cancel();
-
-            // 1. Zobrazenie oblasti četu
-            homeScreen.style.display = 'none';
-            document.getElementById('chat-area').style.display = 'flex';
-            contentDisplay.classList.remove('justify-center');
-
-            // 2. Pridanie správy od používateľa
-            const userMessage = createUserMessage(prompt);
-            chatArea.appendChild(userMessage);
-
-            // 3. Pridanie animácie načítania AI
-            const loadingMessage = createLoadingMessage();
-            chatArea.appendChild(loadingMessage);
-
-            // Vyčistenie a zablokovanie vstupu
-            promptInput.value = '';
-            sendButton.disabled = true;
-            promptInput.rows = 1;
-            chatArea.scrollTop = chatArea.scrollHeight;
-
             try {
-                // 4. VOLANIE API
-                const { text, groundingMetadata } = await geminiApiCall(prompt);
-                
-                // 5. Odstránenie animácie a pridanie generovaného príbehu
-                chatArea.removeChild(loadingMessage);
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-                const aiMessage = createAiMessage(text, 'Odpoveď Modelu', groundingMetadata);
-                chatArea.appendChild(aiMessage);
+                if (!response.ok) {
+                    if (response.status === 429 && retries < 3) {
+                        const delay = Math.pow(2, retries) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return callGeminiAPI(prompt, systemPrompt, tools, retries + 1);
+                    }
+                    throw new Error(`API chyba: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Nastala chyba pri generovaní odpovede.";
+                
+                let sources = [];
+                const groundingMetadata = result.candidates?.[0]?.groundingMetadata;
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                    sources = groundingMetadata.groundingAttributions
+                        .map(attribution => ({
+                            uri: attribution.web?.uri,
+                            title: attribution.web?.title,
+                        }))
+                        .filter(source => source.uri && source.title);
+                }
+
+                return { text, sources };
 
             } catch (error) {
-                console.error("Generovanie zlyhalo:", error);
-                chatArea.removeChild(loadingMessage);
-                const errorMessage = createAiMessage(`**Chyba pri generovaní:** Nastala chyba pri komunikácii s modelom. Skús preformulovať otázku.`, 'Chyba AI');
-                chatArea.appendChild(errorMessage);
-            } finally {
-                sendButton.disabled = promptInput.value.trim() === '';
-                chatArea.scrollTop = chatArea.scrollHeight;
+                console.error("Chyba API volania:", error);
+                return { text: "Prepáčte, nastala chyba pri komunikácii s AI. Skúste to prosím znova.", sources: [] };
             }
         }
 
-        // Pomocná funkcia: Vytvorenie správy od používateľa
-        function createUserMessage(text) {
-            const div = document.createElement('div');
-            div.className = 'flex justify-end';
-            div.innerHTML = `
-                <div class="p-4 rounded-xl text-sm max-w-3xl bg-red-600/80 text-white shadow-xl">
-                    ${text.split('\n').map(p => `<p>${p}</p>`).join('')}
-                </div>
-            `;
-            return div;
-        }
+        // --- Hlavná Funkcia Odoslania Správy ---
+        window.sendMessage = async function() {
+            const message = inputElement.value.trim();
+            // userId je vždy nastavené, takže stačí skontrolovať správu
+            if (!message) return; 
 
-        // Pomocná funkcia: Vytvorenie správy od AI s TTS a možnými zdrojmi
-        function createAiMessage(text, title, groundingMetadata = null) {
-            const div = document.createElement('div');
-            div.className = 'flex justify-start';
+            // 1. Zobrazenie správy používateľa a vyčistenie vstupu
+            createMessageElement('user', message);
+            inputElement.value = '';
             
-            // Nahradenie Markdown *text* za <strong>text</strong> pre lepšie zobrazenie
-            const formattedText = text
-                .trim()
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); 
+            // Dočasné zablokovanie vstupu počas generovania
+            inputElement.disabled = true;
+            sendButton.disabled = true;
 
-            // Spracovanie zdrojov (ak existujú)
-            let sourcesHTML = '';
-            if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                const sources = groundingMetadata.groundingAttributions
-                    .map(attr => ({
-                        uri: attr.web?.uri,
-                        title: attr.web?.title,
-                    }))
-                    .filter(source => source.uri && source.title);
-
-                if (sources.length > 0) {
-                    sourcesHTML = '<div class="mt-3 pt-2 border-t border-gray-700">';
-                    sourcesHTML += '<p class="text-xs text-gray-500 font-semibold mb-1">Zdroje (Internet):</p>';
-                    sourcesHTML += sources.slice(0, 3).map((s, index) => 
-                        `<a href="${s.uri}" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 block truncate">${index + 1}. ${s.title}</a>`
-                    ).join('');
-                    sourcesHTML += '</div>';
-                }
+            const isHorrorRequest = message.toLowerCase().includes('príbeh') || message.toLowerCase().includes('horor') || message.toLowerCase().includes('desivé') || message.toLowerCase().includes('strašidelný');
+            
+            // 2. Nastavenie režimu AI
+            let systemPrompt;
+            let tools;
+            let postStoryCue = "";
+            
+            if (isHorrorRequest) {
+                // Režim Hororového Generátora
+                systemPrompt = "Si ChatSlovak AI V5 Model, v režime 'Masívny Hororový Generátor'. Tvojou úlohou je vygenerovať extrémne desivý, strašidelný a temný krátky príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, psychologický teror a nečakané zvraty. Použi bohatý, opisný jazyk, ktorý navodzuje pocit absolútneho strachu. Príbeh musí byť maximálne desivý. Názov príbehu je povinný. Odpovedaj výlučne v slovenčine.";
+                tools = []; // Vypnutie Google Search pre kreatívne písanie
+                postStoryCue = "Thanking...\n\n"; // Požiadavka užívateľa na špeciálny text
+            } else {
+                // Režim Normálnej Konverzácie
+                systemPrompt = "Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine.";
+                tools = [{ "google_search": {} }]; // Zapnutie Google Search pre bežné otázky
             }
 
-            // Vytvorenie kontajnera s textom pre TTS
-            // Používam 'pre' len pre jednoduchú štruktúru, ale nastavujem whitespace-pre-wrap
-            const textContent = `<pre id="ai-text-${Date.now()}" class="font-sans text-gray-200 whitespace-pre-wrap">${formattedText}</pre>`;
+            // 3. Zobrazenie indikátora načítania
+            const loadingMessageId = `loading-${Date.now()}`;
+            addLoadingIndicator(loadingMessageId, isHorrorRequest);
 
-            div.innerHTML = `
-                <div class="p-4 rounded-xl glass-card text-sm flex flex-col shadow-2xl max-w-3xl">
-                    <div class="flex justify-between items-center mb-2 pb-1 border-b border-gray-700">
-                        <p class="font-bold text-red-400">${title}</p>
-                        <button class="tts-button" onclick="readText(this.parentElement.nextElementSibling, this)">
-                            ${getSpeakerIcon(false)}
-                        </button>
-                    </div>
-                    ${textContent}
-                    ${sourcesHTML}
-                </div>
-            `;
-            return div;
+            // 4. API Volanie
+            const geminiResult = await callGeminiAPI(message, systemPrompt, tools);
+
+            // 5. Odstránenie indikátora načítania
+            removeLoadingIndicator(loadingMessageId);
+
+            // 6. Formátovanie a zobrazenie odpovede
+            let fullResponseText = postStoryCue + geminiResult.text;
+            
+            createMessageElement('ai', fullResponseText, isHorrorRequest);
+            
+            // 7. Spustenie hlasového čítania
+            speakText(fullResponseText);
+
+            // 8. Obnovenie vstupu
+            inputElement.disabled = false;
+            sendButton.disabled = false;
+            inputElement.focus();
         }
-
-        // Pomocná funkcia: Animácia načítania "Premýšľam..."
-        function createLoadingMessage() {
-            const div = document.createElement('div');
-            div.className = 'flex justify-start';
-            div.innerHTML = `
-                <div class="p-4 rounded-xl glass-card text-sm flex items-center shadow-md" id="loading-spinner">
-                    <div class="dot-flashing">
-                        <span>Premýšľam...</span>
-                        <div></div>
-                    </div>
-                </div>
-            `;
-            return div;
-        }
-
-        // Inicializácia pri načítaní okna
-        window.addEventListener('load', () => {
-            initializeAppAndAuth();
-            showHomeScreen();
-            // Automaticky zavoláme renderCategories pre prípad, že modal niekedy použijú
-            renderCategories(); 
-        });
         
+        // Exponovanie funkcie pre onclick v HTML
+        window.toggleSpeaking = toggleSpeaking;
+        window.sendMessage = sendMessage;
     </script>
 </body>
 </html>
+
 

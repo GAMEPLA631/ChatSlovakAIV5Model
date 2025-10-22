@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatSlovak AI V5 Model</title>
-    <!-- Načítanie Tailwind CSS -->
+    <title>ChatSlovak AI - Local Storage Admin System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Nastavenie písma Inter a tmavého pozadia */
@@ -14,9 +13,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            
-            /* Tmavé pozadie s modrými a fialovými prechodmi pre moderný vzhľad */
+            min-height: 10vh;
             background-image: url('https://placehold.co/1920x1080/1a1a2e/ffffff?text=Abstract+Dark+UI'); 
             background-size: cover; 
             background-position: center;
@@ -25,7 +22,6 @@
 
         /* Štýl pre sklenený efekt (Frosted Glass) */
         .glass-container {
-            /* Mierne svetlejšie, pretože pozadie je už tmavé */
             background-color: rgba(0, 0, 0, 0.4); 
             backdrop-filter: blur(15px) saturate(180%);
             -webkit-backdrop-filter: blur(15px) saturate(180%);
@@ -34,175 +30,856 @@
         }
 
         /* Scrollbar styling for a cleaner look */
-        .chat-area::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-area::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 4px;
-        }
-
-        .chat-area::-webkit-scrollbar-track {
-            background: transparent;
-        }
+        .chat-area::-webkit-scrollbar { width: 8px; }
+        .chat-area::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+        .chat-area::-webkit-scrollbar-track { background: transparent; }
         
         /* Loading animation for the "Typing..." state */
         .dot-pulse {
-            position: relative;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: #a8b0e0;
-            animation: dotPulse 1s ease-in-out infinite;
+            position: relative; width: 10px; height: 10px; border-radius: 50%;
+            background-color: #a8b0e0; animation: dotPulse 1s ease-in-out infinite;
         }
-
         .dot-pulse::before, .dot-pulse::after {
-            content: '';
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: #a8b0e0;
-            top: 0;
+            content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%;
+            background-color: #a8b0e0; top: 0;
         }
+        .dot-pulse::before { left: -15px; animation: dotPulseBefore 1s ease-in-out infinite; }
+        .dot-pulse::after { left: 15px; animation: dotPulseAfter 1s ease-in-out infinite; }
 
-        .dot-pulse::before {
-            left: -15px;
-            animation: dotPulseBefore 1s ease-in-out infinite;
-        }
+        @keyframes dotPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.5); } }
+        @keyframes dotPulseBefore { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.5); } }
+        @keyframes dotPulseAfter { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.5); } }
 
-        .dot-pulse::after {
-            left: 15px;
-            animation: dotPulseAfter 1s ease-in-out infinite;
-        }
-
-        @keyframes dotPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.5; }
-        }
-
-        @keyframes dotPulseBefore {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.5; }
-        }
-
-        @keyframes dotPulseAfter {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.5; }
-        }
-
-        /* --- NOVÉ: Animácie pre stránku a chat --- */
+        /* --- Animácie pre stránku a chat --- */
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
         }
         
-        /* Trieda pre animáciu načítania hlavného kontajnera */
-        .animate-fadeInUp {
-            animation: fadeInUp 0.7s ease-out;
-        }
+        .animate-fadeInUp { animation: fadeInUp 0.7s ease-out; }
+        .message-enter { animation: slideIn 0.3s ease-out; }
 
-        /* Trieda pre animáciu správ v chate (pridaná priamo v JS/HTML) */
-        .message-enter {
-            animation: slideIn 0.3s ease-out;
+        /* Admin Ban/Unban Button styles */
+        .ban-button {
+            transition: background-color 0.2s, transform 0.1s;
         }
-        /* --- Koniec nových animácií --- */
+        .ban-button:hover:not(:disabled) {
+            background-color: #ef4444; /* red-500 */
+        }
+        .unban-button:hover:not(:disabled) {
+            background-color: #15803d; /* green-700 */
+        }
+        .ban-button:disabled, .unban-button:disabled {
+             opacity: 0.5;
+             cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Pridaná trieda animate-fadeInUp pre animáciu pri načítaní stránky -->
-    <div class="glass-container w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl p-6 md:p-8 m-4 animate-fadeInUp">
-        
-        <!-- Hlavička ChatSlovak AI -->
-        <header class="mb-4 pb-4 border-b border-white/20">
-            <h1 class="text-3xl font-extrabold text-blue-300 flex items-center">
-                <svg class="w-8 h-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 17h18M5 17h14L12 3 5 17z" />
-                </svg>
-                ChatSlovak AI <span class="text-lg font-light ml-2 text-white/70">V5 Model</span>
-            </h1>
-            <p class="text-sm text-white/50">Profesionálny konverzačný partner. Píše masívne desivé príbehy. (Skúste napísať 'napíš mi hororový príbeh').</p>
-        </header>
-
-        <!-- Tlačidlá Funkcií -->
-        <div class="flex justify-start mb-4">
-            <button id="tts-toggle" onclick="toggleSpeaking()" class="flex items-center text-sm font-medium py-2 px-4 rounded-full transition duration-200 bg-gray-700 hover:bg-gray-600 text-white shadow-md">
-                Hlas: Vypnutý
-                <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414zM10.15 4.54a2 2 0 013.7 0M8 8a2 2 0 11-4 0 2 2 0 014 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 12h.01M19 12h.01" />
-                </svg>
-            </button>
+    <div id="app-container" class="glass-container w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl p-6 md:p-8 m-4 animate-fadeInUp">
+        <!-- Obsah bude generovaný dynamicky funkciou renderApp() -->
+        <div class="flex-grow flex items-center justify-center">
+            <div class="dot-pulse"></div>
+            <p class="ml-4 text-xl">Načítavam aplikáciu...</p>
         </div>
-
-        <!-- Oblasť Správ -->
-        <div id="chat-messages" class="chat-area flex-grow overflow-y-auto space-y-4 pr-2 mb-4">
-            <!-- Úvodná správa -->
-            <div class="flex justify-start">
-                <!-- Pridaná trieda message-enter pre animáciu prvej správy -->
-                <div class="bg-blue-600/50 glass-container p-3 rounded-xl rounded-tl-none max-w-3xl shadow-lg message-enter">
-                    <p class="font-bold text-blue-200">ChatSlovak AI V5 Model</p>
-                    <p class="text-white mt-1">Dobrý deň. Som pripravený na konverzáciu. Povedzte mi, ako vám môžem pomôcť, alebo mi zadajte príkaz 'napíš mi hororový príbeh'.</p>
-                </div>
-            </div>
-            <!-- Správy budú pridané sem -->
-        </div>
-
-        <!-- Vstupná Oblasť -->
-        <div class="flex space-x-3 glass-container p-3 rounded-xl">
-            <!-- Odstránený 'disabled' atribút -->
-            <input type="text" id="chat-input" placeholder="Napíšte svoju správu..." class="flex-grow p-3 rounded-lg bg-white/10 text-white border-none focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-white/50" onkeydown="if(event.key === 'Enter') sendMessage()">
-            <!-- Odstránený 'disabled' atribút -->
-            <button id="send-button" onclick="sendMessage()" class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md flex items-center justify-center disabled:opacity-50">
-                Odoslať
-                <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-            </button>
-        </div>
-        
     </div>
 
-    <!-- API Skripty (Firebase odstránené) -->
-    <script type="module">
-        
-        // --- Konfigurácia pre prehliadačové prostredie ---
-        // Generovanie lokálneho ID používateľa
-        const userId = crypto.randomUUID(); 
-        
-        // --- Konštanty pre AI ---
+    <script>
+        // --- Globálne premenné a Konštanty ---
         const API_KEY = "AIzaSyDdiCiIfr2gLtsRMENBkWG1hJo6N1uij7w";
         const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        const ADMIN_EMAIL = "admin@chatslovak.com"; // Pevne stanovený admin účet
         
-        // --- Funkcie pre Hlasové Čítanie (TTS) ---
+        // Kľúče pre Local Storage
+        const LOCAL_USERS_KEY = 'cs_users';
+        const LOCAL_SESSION_KEY = 'cs_current_user_email';
+
+        let currentUserData = null; // { email, nickname, isAdmin, ... }
+        let currentBanDetails = null;
+        let currentView = 'loading'; // 'loading', 'auth', 'register', 'chat', 'admin', 'banned'
+        let usersForAdmin = []; // Zoznam používateľov pre Admin Panel
+        
+        // UI prvky
+        const appContainer = document.getElementById('app-container');
+        let chatArea = null; 
+        
+        // --- Local Storage User Store Funkcie ---
+
+        function loadUsers() {
+            try {
+                const usersJson = localStorage.getItem(LOCAL_USERS_KEY);
+                return usersJson ? JSON.parse(usersJson) : {};
+            } catch (e) {
+                console.error("Chyba pri načítaní užívateľov z localStorage:", e);
+                return {};
+            }
+        }
+
+        function saveUsers(users) {
+            try {
+                localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+            } catch (e) {
+                console.error("Chyba pri ukladaní užívateľov do localStorage:", e);
+            }
+        }
+        
+        function getCurrentUserEmail() {
+            return localStorage.getItem(LOCAL_SESSION_KEY);
+        }
+
+        function setCurrentUserEmail(email) {
+            if (email) {
+                localStorage.setItem(LOCAL_SESSION_KEY, email);
+            } else {
+                localStorage.removeItem(LOCAL_SESSION_KEY);
+            }
+        }
+
+        function getUserByEmail(email) {
+            const users = loadUsers();
+            return users[email];
+        }
+        
+        /**
+         * Pomocná funkcia na formátovanie ISO dátumu do čitateľného reťazca.
+         */
+        function formatDate(isoString) {
+            if (!isoString) return 'N/A';
+            try {
+                return new Date(isoString).toLocaleString('sk-SK', { 
+                    year: 'numeric', month: 'short', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+            } catch {
+                return 'Neplatný dátum';
+            }
+        }
+
+
+        // --- Inicializácia a Overovanie ---
+
+        function initializeApp() {
+            // Prednastavenie Admin účtu, ak neexistuje
+            const users = loadUsers();
+            if (!users[ADMIN_EMAIL]) {
+                const now = new Date().toISOString(); // Uloženie aktuálneho dátumu
+                users[ADMIN_EMAIL] = {
+                    email: ADMIN_EMAIL,
+                    nickname: 'Admin Čatu',
+                    password: 'adminpassword', // Jednoduché heslo pre test
+                    isAdmin: true,
+                    registrationDate: now, 
+                    lastLoginDate: now,    
+                };
+                saveUsers(users);
+            }
+
+            const currentEmail = getCurrentUserEmail();
+            if (currentEmail) {
+                loadUserProfile(currentEmail);
+            } else {
+                currentView = 'auth';
+                renderApp();
+            }
+        }
+
+        function loadUserProfile(email) {
+            const userProfile = getUserByEmail(email);
+
+            if (!userProfile) {
+                setCurrentUserEmail(null);
+                currentUserData = null;
+                currentView = 'auth';
+                renderApp();
+                return;
+            }
+
+            // Nastavenie aktuálnych dát užívateľa
+            currentUserData = {
+                email: userProfile.email,
+                nickname: userProfile.nickname,
+                isAdmin: userProfile.isAdmin,
+            };
+
+            // Kontrola Banu
+            if (userProfile.ban) {
+                currentBanDetails = userProfile.ban;
+                const banEndDate = new Date(currentBanDetails.endDate);
+                
+                if (banEndDate > new Date()) {
+                    currentBanDetails.isActive = true;
+                    currentBanDetails.errorCode = 403; 
+                    currentView = 'banned';
+                } else {
+                    // Ban vypršal - vyčistíme stav banu a presunieme do chatu
+                    clearBanStatus(email);
+                    currentBanDetails = null;
+                    currentView = 'chat'; 
+                }
+            } else {
+                currentBanDetails = null;
+                currentView = 'chat'; 
+            }
+
+            renderApp();
+        }
+        
+        /**
+         * Odstráni záznam o bane pre daného užívateľa a uloží zmeny.
+         * @param {string} email 
+         */
+        function clearBanStatus(email) {
+            const users = loadUsers();
+            if (users[email] && users[email].ban) {
+                delete users[email].ban;
+                saveUsers(users);
+            }
+        }
+
+
+        // --- Logika Overenia ---
+        window.handleLogin = function() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            if (!email || !password) return showModal('Chyba', 'Prosím, vyplňte obe polia.');
+
+            const user = getUserByEmail(email);
+            if (user && user.password === password) { // Jednoduchá kontrola hesla
+                
+                // --- Aktualizácia dátumu posledného prihlásenia ---
+                user.lastLoginDate = new Date().toISOString(); 
+                const users = loadUsers();
+                users[email] = user; 
+                saveUsers(users);    
+                
+                setCurrentUserEmail(email);
+                loadUserProfile(email);
+            } else {
+                showModal('Chyba pri prihlásení', 'Nesprávny email alebo heslo.');
+            }
+        }
+
+        window.handleRegistration = function() {
+            const email = document.getElementById('register-email').value;
+            const nickname = document.getElementById('register-nickname').value;
+            const password = document.getElementById('register-password').value;
+            if (!email || !nickname || !password) return showModal('Chyba', 'Prosím, vyplňte všetky polia.');
+            if (password.length < 6) return showModal('Chyba', 'Heslo musí mať aspoň 6 znakov.');
+
+            let users = loadUsers();
+            if (users[email]) {
+                return showModal('Chyba pri registrácii', 'Účet s týmto emailom už existuje.');
+            }
+            
+            const isAdmin = email === ADMIN_EMAIL;
+            const now = new Date().toISOString(); 
+            
+            users[email] = {
+                email: email,
+                nickname: nickname,
+                password: password, 
+                isAdmin: isAdmin,
+                registrationDate: now, 
+                lastLoginDate: now,    
+            };
+            saveUsers(users);
+
+            setCurrentUserEmail(email);
+            loadUserProfile(email);
+        }
+        
+        window.handleLogout = function() {
+            setCurrentUserEmail(null);
+            currentUserData = null;
+            currentBanDetails = null;
+            currentView = 'auth';
+            renderApp();
+        }
+
+        // --- Admin Navigácia ---
+        window.switchToAdminView = function() {
+            if (currentUserData?.isAdmin) {
+                currentView = 'admin';
+                fetchUsersForAdmin(); // Načítanie dát až pri prechode
+            } else {
+                showModal('Prístup Zamietnutý', 'Túto funkciu môžu používať len administrátori.');
+            }
+        }
+        
+        window.switchToChatView = function() {
+            currentView = 'chat';
+            renderApp();
+        }
+
+        // --- Logika Admin Panela ---
+
+        window.fetchUsersForAdmin = function() {
+            usersForAdmin = [];
+            const users = loadUsers();
+            
+            for (const email in users) {
+                const user = users[email];
+                // Admin nemôže banovať sám seba
+                if (user.email !== ADMIN_EMAIL) {
+                    // Kontrola aktuálneho stavu banu pred zobrazením
+                    if (user.ban) {
+                        const banEndDate = new Date(user.ban.endDate);
+                        if (banEndDate <= new Date()) {
+                            // Ban vypršal, vyčistíme ho lokálne pre zobrazenie
+                            clearBanStatus(email); // Odstránenie prešlého banu
+                            user.isBanned = false;
+                        } else {
+                            user.isBanned = true;
+                            user.banReason = user.ban.reason;
+                            user.banEnd = user.ban.endDate;
+                        }
+                    } else {
+                        user.isBanned = false;
+                    }
+                    usersForAdmin.push(user);
+                }
+            }
+            renderApp();
+        }
+        
+        // Pomocná funkcia pre výpočet koncového dátumu Banu
+        function calculateBanEndDate(durationValue, durationUnit) {
+            const banEndDate = new Date();
+            
+            switch (durationUnit) {
+                case 'hours':
+                    banEndDate.setHours(banEndDate.getHours() + durationValue);
+                    break;
+                case 'days':
+                    banEndDate.setDate(banEndDate.getDate() + durationValue);
+                    break;
+                case 'weeks':
+                    banEndDate.setDate(banEndDate.getDate() + (durationValue * 7));
+                    break;
+                case 'months':
+                    banEndDate.setMonth(banEndDate.getMonth() + durationValue);
+                    break;
+                case 'years':
+                    banEndDate.setFullYear(banEndDate.getFullYear() + durationValue);
+                    break;
+                default:
+                    throw new Error('Neplatná jednotka trvania banu.');
+            }
+            return banEndDate;
+        }
+
+
+        window.banUser = function(email) {
+            const reason = document.getElementById(`reason-${email}`).value.trim();
+            // Získanie hodnoty a jednotky
+            const durationValue = parseInt(document.getElementById(`duration-value-${email}`).value);
+            const durationUnit = document.getElementById(`duration-unit-${email}`).value;
+            
+            if (!reason) return showModal('Chyba', 'Dôvod banu je povinný.');
+            if (isNaN(durationValue) || durationValue <= 0) return showModal('Chyba', 'Doba banu musí byť platné kladné číslo.');
+
+            try {
+                const banEndDate = calculateBanEndDate(durationValue, durationUnit);
+                const banData = {
+                    reason: reason,
+                    startDate: new Date().toISOString(),
+                    endDate: banEndDate.toISOString(),
+                    adminEmail: currentUserData.email || 'Neznámy admin'
+                };
+
+                const users = loadUsers();
+                if (users[email]) {
+                    users[email].ban = banData;
+                    saveUsers(users);
+
+                    showModal('Úspech', `Užívateľ ${users[email].nickname} (${email}) bol úspešne zabanovaný na ${durationValue} ${durationUnit} (do ${formatDate(banEndDate.toISOString())}).`, 'bg-green-600');
+                    fetchUsersForAdmin(); // Obnovenie zoznamu
+                } else {
+                    showModal('Chyba', `Užívateľ ${email} nebol nájdený.`);
+                }
+            } catch (e) {
+                showModal('Chyba', e.message);
+            }
+        }
+        
+        /**
+         * Zablokuje užívateľa na základe zadanej prezývky.
+         */
+        window.banUserByNickname = function() {
+            const nickname = document.getElementById('quick-ban-nickname').value.trim();
+            const reason = document.getElementById('quick-ban-reason').value.trim();
+            const durationValue = parseInt(document.getElementById('quick-ban-duration-value').value);
+            const durationUnit = document.getElementById('quick-ban-duration-unit').value;
+            
+            // 1. Validácia
+            if (!nickname) return showModal('Chyba', 'Prosím, zadajte prezývku užívateľa, ktorého chcete zabanovať.');
+            if (!reason) return showModal('Chyba', 'Dôvod banu je povinný.');
+            if (isNaN(durationValue) || durationValue <= 0) return showModal('Chyba', 'Doba banu musí byť platné kladné číslo.');
+
+            // 2. Nájsť užívateľa podľa prezývky
+            const users = loadUsers();
+            let targetUserEmail = null;
+            let targetUserNickname = null;
+            
+            // Hľadanie je case-insensitive (ignoruje veľkosť písmen)
+            const normalizedNickname = nickname.toLowerCase();
+
+            for (const email in users) {
+                if (users[email].nickname.toLowerCase() === normalizedNickname) {
+                    targetUserEmail = email;
+                    targetUserNickname = users[email].nickname;
+                    break;
+                }
+            }
+
+            if (!targetUserEmail) {
+                return showModal('Chyba', `Užívateľ s prezývkou "${nickname}" nebol nájdený.`);
+            }
+
+            if (targetUserEmail === ADMIN_EMAIL) {
+                 return showModal('Chyba', 'Nemôžete zabanovať admina (sám seba).');
+            }
+            
+            // 3. Aplikácia Banu
+            try {
+                const banEndDate = calculateBanEndDate(durationValue, durationUnit);
+                
+                const banData = {
+                    reason: reason,
+                    startDate: new Date().toISOString(),
+                    endDate: banEndDate.toISOString(),
+                    adminEmail: currentUserData.email || 'Neznámy admin'
+                };
+
+                users[targetUserEmail].ban = banData;
+                saveUsers(users);
+
+                showModal('Úspech', `Užívateľ "${targetUserNickname}" (${targetUserEmail}) bol úspešne zabanovaný na ${durationValue} ${durationUnit} (do ${formatDate(banEndDate.toISOString())}).`, 'bg-green-600');
+                
+                // Vyčistíme polia po úspešnom bane
+                document.getElementById('quick-ban-nickname').value = '';
+                document.getElementById('quick-ban-reason').value = '';
+                
+                fetchUsersForAdmin(); // Obnovenie zoznamu
+            } catch (e) {
+                showModal('Chyba', e.message);
+            }
+        }
+        
+        /**
+         * NOVÁ FUNKCIA: Odblokuje užívateľa na základe zadanej prezývky.
+         */
+        window.unbanUserByNickname = function() {
+            const nickname = document.getElementById('quick-unban-nickname').value.trim();
+            
+            if (!nickname) return showModal('Chyba', 'Prosím, zadajte prezývku užívateľa, ktorého chcete odbanovať.');
+
+            const users = loadUsers();
+            let targetUserEmail = null;
+            let targetUserNickname = null;
+            
+            const normalizedNickname = nickname.toLowerCase();
+
+            for (const email in users) {
+                if (users[email].nickname.toLowerCase() === normalizedNickname) {
+                    targetUserEmail = email;
+                    targetUserNickname = users[email].nickname;
+                    break;
+                }
+            }
+
+            if (!targetUserEmail) {
+                return showModal('Chyba', `Užívateľ s prezývkou "${nickname}" nebol nájdený.`, 'bg-red-600');
+            }
+
+            if (!users[targetUserEmail].ban) {
+                return showModal('Upozornenie', `Užívateľ "${targetUserNickname}" nie je momentálne zabanovaný.`, 'bg-yellow-600');
+            }
+            
+            // Perform Unban
+            try {
+                // Použijeme existujúcu funkciu na odstránenie banu a uloženie
+                clearBanStatus(targetUserEmail); 
+
+                showModal('Úspech', `Užívateľ "${targetUserNickname}" (${targetUserEmail}) bol úspešne odblokovaný.`, 'bg-green-600');
+                
+                // Vyčistíme polia po úspešnom odbanovaní
+                document.getElementById('quick-unban-nickname').value = '';
+                
+                fetchUsersForAdmin(); // Obnovenie zoznamu
+            } catch (e) {
+                showModal('Chyba', e.message);
+            }
+        }
+
+
+        /**
+         * Okamžite ruší ban pre daného užívateľa.
+         * @param {string} email 
+         */
+        window.unbanUser = function(email) {
+            const user = getUserByEmail(email);
+            if (!user) return showModal('Chyba', 'Užívateľ nebol nájdený.');
+            
+            clearBanStatus(email);
+            showModal('Úspech', `Užívateľ ${user.nickname} (${email}) bol úspešne odblokovaný.`, 'bg-green-600');
+            fetchUsersForAdmin(); // Obnovenie zoznamu
+        }
+
+        // --- Modálne okná (náhrada za alert/confirm) ---
+        function showModal(title, message, colorClass = 'bg-red-600') {
+            const modalId = `modal-${Date.now()}`;
+            const modalHtml = `
+                <div id="${modalId}" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onclick="document.getElementById('${modalId}').remove()">
+                    <div class="glass-container p-6 rounded-xl max-w-sm w-full animate-fadeInUp" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-center pb-3 border-b border-white/20">
+                            <h3 class="text-xl font-bold ${colorClass.replace('bg-', 'text-')}">${title}</h3>
+                            <button onclick="document.getElementById('${modalId}').remove()" class="text-white hover:text-gray-400">&times;</button>
+                        </div>
+                        <p class="text-white mt-4 whitespace-pre-wrap">${message}</p>
+                        <button onclick="document.getElementById('${modalId}').remove()" class="mt-6 w-full py-2 ${colorClass} text-white rounded-lg hover:opacity-90 transition duration-200">Zatvoriť</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        // --- Renderovanie UI Pohľadov ---
+
+        function renderHeader(title, subtitle, nickname = null, includeAdminButton = false) {
+            const userDisplay = nickname ? `<span class="text-lg font-light ml-2 text-white/70">| Vitaj, ${nickname}!</span>` : '';
+            
+            let actionButtons = `
+                <button onclick="handleLogout()" class="text-sm font-medium py-2 px-4 rounded-full transition duration-200 bg-red-700 hover:bg-red-600 text-white shadow-md">Odhlásiť</button>
+            `;
+            
+            // Logika Admin Panel tlačidla (UPRAVENÉ PRE LEPŠIU VIDITEĽNOSŤ)
+            if (currentUserData && currentUserData.isAdmin && includeAdminButton) {
+                actionButtons = `
+                    <button onclick="switchToAdminView()" class="text-sm font-bold py-2 px-4 rounded-full transition duration-300 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg mr-2 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        Admin Panel
+                    </button>
+                    ${actionButtons}
+                `;
+            } else if (currentView === 'admin' && currentUserData) {
+                 // Ak je Admin a je v Admin Paneli, pridáme tlačidlo Späť do Chatu
+                actionButtons = `
+                    <button onclick="switchToChatView()" class="text-sm font-medium py-2 px-4 rounded-full transition duration-200 bg-blue-600 hover:bg-blue-500 text-white shadow-md mr-2">
+                        Späť do Chatu
+                    </button>
+                    ${actionButtons}
+                `;
+            }
+            
+            return `
+                <header class="mb-4 pb-4 border-b border-white/20 flex justify-between items-start">
+                    <div>
+                        <h1 class="text-3xl font-extrabold text-blue-300 flex items-center">
+                            <svg class="w-8 h-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 17h18M5 17h14L12 3 5 17z" />
+                            </svg>
+                            ${title}
+                            ${userDisplay}
+                        </h1>
+                        <p class="text-sm text-white/50">${subtitle}</p>
+                    </div>
+                    ${currentUserData ? `<div class="flex">${actionButtons}</div>` : ''}
+                </header>
+            `;
+        }
+
+        function renderAuthView() {
+            const isRegister = currentView === 'register';
+            return `
+                ${renderHeader('Prihlásenie / Registrácia', 'Pre prístup k chatu a správu účtu sa prosím prihláste.')}
+                <div class="flex-grow flex items-center justify-center">
+                    <div class="p-8 w-full max-w-md bg-black/30 rounded-2xl">
+                        <h2 class="text-2xl font-bold mb-6 text-center">${isRegister ? 'Registrácia nového účtu' : 'Prihlásenie do účtu'}</h2>
+                        <input type="email" id="${isRegister ? 'register-email' : 'login-email'}" placeholder="Email" class="w-full p-3 mb-4 rounded-lg bg-white/10 text-white border-none focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-white/50">
+                        ${isRegister ? `<input type="text" id="register-nickname" placeholder="Prezývka (Nickname)" class="w-full p-3 mb-4 rounded-lg bg-white/10 text-white border-none focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-white/50">` : ''}
+                        <input type="password" id="${isRegister ? 'register-password' : 'login-password'}" placeholder="Heslo" class="w-full p-3 mb-6 rounded-lg bg-white/10 text-white border-none focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-white/50" onkeydown="if(event.key === 'Enter') ${isRegister ? 'handleRegistration()' : 'handleLogin()'}">
+                        
+                        <button onclick="${isRegister ? 'handleRegistration()' : 'handleLogin()'}" class="w-full bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 rounded-xl transition duration-200 shadow-md">
+                            ${isRegister ? 'Registrovať' : 'Prihlásiť'}
+                        </button>
+                        
+                        <p class="text-center text-sm mt-4 text-white/70">
+                            ${isRegister ? 'Už máte účet?' : 'Nemáte účet?'}
+                            <a href="#" onclick="currentView = '${isRegister ? 'auth' : 'register'}'; renderApp();" class="text-blue-300 hover:text-blue-200 font-semibold">
+                                ${isRegister ? 'Prihláste sa tu' : 'Registrujte sa tu'}
+                            </a>
+                        </p>
+                        
+                        <!-- RIADOK S RÝCHLYM PRIHLÁSENÍM PRE ADMINA -->
+                        ${!isRegister ? `
+                            <div class="mt-8 pt-4 border-t border-white/20">
+                                <h3 class="text-xl font-bold mb-3 text-red-300 flex items-center">
+                                    <svg class="w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3M10 17h.01M12 11h.01M16 17h.01M18 17h.01M10 14H8m4 0h-2m4 0h-2m4 0h-2M18 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2h4" />
+                                    </svg>
+                                    Rýchle Prihlásenie ako ADMIN
+                                </h3>
+                                <p class="text-sm text-white/80 mb-2">Pre prístup do Admin Panela použite tieto predvolené údaje (automaticky vytvorené):</p>
+                                <div class="bg-black/50 p-3 rounded-lg text-sm font-mono break-all border border-red-700">
+                                    <p class="text-red-200">Email: <span id="admin-email-display" class="font-semibold">${ADMIN_EMAIL}</span></p>
+                                    <p class="text-red-200">Heslo: <span id="admin-password-display" class="font-semibold">adminpassword</span></p>
+                                </div>
+                                <button onclick="document.getElementById('login-email').value='${ADMIN_EMAIL}'; document.getElementById('login-password').value='adminpassword'; handleLogin();" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition duration-200 shadow-md mt-4">
+                                    Prihlásiť ako ADMIN
+                                </button>
+                            </div>
+                        ` : ''}
+                        
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderBannedView() {
+            if (!currentBanDetails) return renderAuthView(); // Fallback
+            
+            const reason = currentBanDetails.reason || 'Žiadny dôvod nebol uvedený.';
+            const endDate = new Date(currentBanDetails.endDate).toLocaleString('sk-SK');
+            const errorCode = currentBanDetails.errorCode || '403'; 
+
+            return `
+                ${renderHeader('Účet Zablokovaný', 'Tento účet bol zablokovaný pre porušenie pravidiel. Nemáte prístup k chatu.')}
+                <div class="flex-grow flex items-center justify-center text-center">
+                    <div class="glass-container p-10 bg-red-800/50 rounded-2xl max-w-xl">
+                        <h2 class="text-4xl font-extrabold text-red-300 mb-4">STOP! Váš účet je BAN!</h2>
+                        <p class="text-lg text-white mb-6">Prístup bol zamietnutý. Zablokovanie platí.</p>
+                        
+                        <div class="text-left bg-black/30 p-5 rounded-lg border border-red-500">
+                            <p class="mb-3"><span class="font-bold text-red-200">Číslo Chyby:</span> <span class="text-xl">${errorCode}</span></p>
+                            <p class="mb-3"><span class="font-bold text-red-200">Dôvod Zablokovania:</span></p>
+                            <p class="whitespace-pre-wrap italic">${reason}</p>
+                            <p class="mt-3"><span class="font-bold text-red-200">Zablokovanie Platí Do:</span> ${endDate}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminView() {
+            const listHtml = usersForAdmin.length === 0 
+                ? '<p class="text-center py-8 text-white/70">Žiadni registrovaní používatelia (okrem Admina) na zobrazenie.</p>'
+                : usersForAdmin.map(user => {
+                    // Formátovanie dátumov
+                    const regDate = formatDate(user.registrationDate);
+                    const loginDate = formatDate(user.lastLoginDate);
+                    
+                    // Zobrazenie detailov banu
+                    let banDetailHtml = '';
+                    if (user.isBanned) {
+                        banDetailHtml = `
+                            <p class="text-xs text-red-400 mt-1">STATUS: ZABANOVANÝ</p>
+                            <p class="text-xs text-white/50">Dôvod: ${user.banReason}</p>
+                            <p class="text-xs text-white/50">Koniec Banu: ${formatDate(user.banEnd)}</p>
+                        `;
+                    } else {
+                        banDetailHtml = `<p class="text-xs text-green-400 mt-1">STATUS: Aktívny</p>`;
+                    }
+
+
+                    return `
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center glass-container p-4 rounded-xl mb-3 ${user.isBanned ? 'bg-red-900/40 border-red-500' : 'bg-white/10 border-white/20'}">
+                            <div class="mb-3 md:mb-0">
+                                <p class="font-bold text-xl text-blue-300">${user.nickname}</p>
+                                <p class="text-sm text-white/70">${user.email}</p>
+                                
+                                <!-- Detaily Banu -->
+                                ${banDetailHtml}
+                                
+                                <!-- Zobrazenie dátumov -->
+                                <p class="text-xs text-white/50 mt-1">Reg.: ${regDate}</p>
+                                <p class="text-xs text-white/50">Posledné prihl.: ${loginDate}</p>
+                                
+                            </div>
+                            <!-- Ovládanie Banu -->
+                            <div class="flex flex-col space-y-2 w-full md:w-80">
+                                <!-- Polia pre BAN -->
+                                <input type="text" id="reason-${user.email}" placeholder="Dôvod banu (povinné)" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-full" ${user.isBanned ? 'disabled' : ''}>
+                                
+                                <div class="flex space-x-2">
+                                    <input type="number" id="duration-value-${user.email}" placeholder="Hodnota" value="7" min="1" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-1/3" ${user.isBanned ? 'disabled' : ''}>
+                                    <select id="duration-unit-${user.email}" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-2/3" ${user.isBanned ? 'disabled' : ''}>
+                                        <option value="hours">Hodín</option>
+                                        <option value="days" selected>Dní</option>
+                                        <option value="weeks">Týždňov</option>
+                                        <option value="months">Mesiacov</option>
+                                        <option value="years">Rokov</option>
+                                    </select>
+                                </div>
+
+                                <!-- Tlačidlá BAN a ODBAN -->
+                                <div class="flex space-x-2">
+                                    <button onclick="banUser('${user.email}')" class="ban-button flex-grow bg-red-700 text-white font-bold py-2 rounded-lg" ${user.isBanned ? 'disabled' : ''}>
+                                        BAN
+                                    </button>
+                                    <button onclick="unbanUser('${user.email}')" class="unban-button flex-grow bg-green-700 text-white font-bold py-2 rounded-lg" ${!user.isBanned ? 'disabled' : ''}>
+                                        ODBAN
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            return `
+                <!-- Admin Panel Header s tlačidlom Späť do Chatu -->
+                ${renderHeader('ADMIN PANEL (LOCAL STORAGE)', 'Správa užívateľských účtov a banov.', currentUserData?.nickname, false)} 
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <!-- SEKCIA 1: Rýchle Zablokovanie podľa Prezývky (BAN) -->
+                    <div class="p-5 glass-container bg-red-900/20 rounded-xl border border-red-500/50">
+                        <h2 class="text-2xl font-bold mb-4 text-red-300">Rýchle BAN Podľa Prezývky</h2>
+                        
+                        <!-- Input pre prezývku -->
+                        <input type="text" id="quick-ban-nickname" placeholder="Prezývka na zabanovanie" class="w-full p-3 mb-3 rounded-lg bg-black/30 text-white/90 border border-red-500/50 focus:ring-red-500 focus:outline-none">
+                        
+                        <!-- Dôvod Banu -->
+                        <input type="text" id="quick-ban-reason" placeholder="Dôvod banu (povinné)" class="w-full p-3 mb-3 rounded-lg bg-black/30 text-white/90 border border-white/20 focus:ring-blue-500 focus:outline-none">
+                        
+                        <!-- Trvanie Banu -->
+                        <div class="flex space-x-3 mb-4">
+                            <input type="number" id="quick-ban-duration-value" placeholder="Hodnota" value="7" min="1" class="p-3 rounded-lg bg-black/30 text-white/90 border border-white/20 text-base w-1/3">
+                            <select id="quick-ban-duration-unit" class="p-3 rounded-lg bg-black/30 text-white/90 border border-white/20 text-base w-2/3">
+                                <option value="hours">Hodín</option>
+                                <option value="days" selected>Dní</option>
+                                <option value="weeks">Týždňov</option>
+                                <option value="months">Mesiacov</option>
+                                <option value="years">Rokov</option>
+                            </select>
+                        </div>
+
+                        <button onclick="banUserByNickname()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                            Zablokovať (BAN) Užívateľa
+                        </button>
+                    </div>
+
+                    <!-- SEKCIA 2: Rýchle Odblokovanie podľa Prezývky (ODBAN) -->
+                    <div class="p-5 glass-container bg-green-900/20 rounded-xl border border-green-500/50">
+                        <h2 class="text-2xl font-bold mb-4 text-green-300">Rýchle ODBAN Podľa Prezývky</h2>
+                        
+                        <!-- Input pre prezývku na odbanovanie -->
+                        <input type="text" id="quick-unban-nickname" placeholder="Prezývka na odblokovanie" class="w-full p-3 mb-4 rounded-lg bg-black/30 text-white/90 border border-green-500/50 focus:ring-green-500 focus:outline-none">
+                        
+                        <div class="h-[120px] mb-4 flex items-center justify-center">
+                            <p class="text-white/70 italic text-sm text-center">Tlačidlo odstráni aktuálne zablokovanie užívateľa, ak existuje. Dôvod a doba trvania nie sú potrebné.</p>
+                        </div>
+
+                        <button onclick="unbanUserByNickname()" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.382a12.001 12.001 0 00-17.228 0m17.228 0h.005m-.005 0a12.001 12.001 0 01-17.228 0m17.228 0H21m-3 0h.005M5.636 5.636l12.728 12.728M5.636 5.636L18.364 18.364M5.636 5.636l12.728 12.728" />
+                            </svg>
+                            Odblokovať (ODBAN) Užívateľa
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-4 border-t pt-4 border-white/20">
+                    <h2 class="text-2xl font-bold text-white">Zoznam užívateľov pre manuálnu správu:</h2>
+                    <button onclick="fetchUsersForAdmin()" class="text-sm font-medium py-1 px-3 rounded-full bg-gray-600 hover:bg-gray-500 text-white">Obnoviť</button>
+                </div>
+                
+                <div class="flex-grow overflow-y-auto pr-2">
+                    ${listHtml}
+                </div>
+            `;
+        }
+
+        function renderChatView() {
+            return `
+                <!-- Chat Header s tlačidlom Admin Panel pre Adminov -->
+                ${renderHeader('ChatSlovak AI V5 Model', 'Profesionálny konverzačný partner. Píše masívne desivé príbehy.', currentUserData?.nickname, true)}
+                
+                <!-- Tlačidlá Funkcií -->
+                <div class="flex justify-start mb-4">
+                    <button id="tts-toggle" onclick="toggleSpeaking()" class="flex items-center text-sm font-medium py-2 px-4 rounded-full transition duration-200 bg-gray-700 hover:bg-gray-600 text-white shadow-md">
+                        Hlas: Vypnutý
+                        <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414zM10.15 4.54a2 2 0 013.7 0M8 8a2 2 0 11-4 0 2 2 0 014 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 12h.01M19 12h.01" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Oblasť Správ -->
+                <div id="chat-messages" class="chat-area flex-grow overflow-y-auto space-y-4 pr-2 mb-4">
+                    <!-- Úvodná správa -->
+                    <div class="flex justify-start">
+                        <div class="bg-blue-600/50 glass-container p-3 rounded-xl rounded-tl-none max-w-3xl shadow-lg message-enter">
+                            <p class="font-bold text-blue-200">ChatSlovak AI V5 Model</p>
+                            <p class="text-white mt-1">Dobrý deň, ${currentUserData?.nickname}. Som pripravený na konverzáciu. Povedzte mi, ako vám môžem pomôcť, alebo mi zadajte príkaz 'napíš mi hororový príbeh'.</p>
+                        </div>
+                    </div>
+                    <!-- Správy budú pridané sem -->
+                </div>
+
+                <!-- Vstupná Oblasť -->
+                <div class="flex space-x-3 glass-container p-3 rounded-xl">
+                    <input type="text" id="chat-input" placeholder="Napíšte svoju správu..." class="flex-grow p-3 rounded-lg bg-white/10 text-white border-none focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-white/50" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+                    <button id="send-button" onclick="sendChatMessage()" class="bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md flex items-center justify-center">
+                        Odoslať
+                        <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
+
+        window.renderApp = function() {
+            let content = '';
+            switch(currentView) {
+                case 'loading':
+                    content = `<div class="flex-grow flex items-center justify-center"><div class="dot-pulse"></div><p class="ml-4 text-xl">Načítavam aplikáciu...</p></div>`;
+                    break;
+                case 'auth':
+                case 'register':
+                    content = renderAuthView();
+                    break;
+                case 'banned':
+                    content = renderBannedView();
+                    break;
+                case 'admin':
+                    content = renderAdminView();
+                    break;
+                case 'chat':
+                    content = renderChatView();
+                    break;
+                default:
+                    content = `<div class="flex-grow flex items-center justify-center"><p class="text-xl text-red-500">Neznámy stav aplikácie.</p></div>`;
+            }
+            appContainer.innerHTML = content;
+            
+            // Re-bind chatArea po zmene view, ak je v chatovom pohľade
+            if (currentView === 'chat') {
+                 chatArea = document.getElementById('chat-messages');
+                 updateTtsButton(); // Obnovenie tlačidla TTS
+            }
+        }
+
+
+        // --- Funkcie pre Hlasové Čítanie (TTS) - ponechané ---
         let isSpeakingEnabled = false;
         
-        // Nastaví ikonu a stav TTS
         function updateTtsButton() {
             const ttsButton = document.getElementById('tts-toggle');
+            if (!ttsButton) return;
+
             if (isSpeakingEnabled) {
                 ttsButton.classList.remove('bg-gray-700', 'hover:bg-gray-600');
                 ttsButton.classList.add('bg-blue-500', 'hover:bg-blue-400');
-                ttsButton.innerHTML = `Hlas: Zapnutý <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414z" /></svg>`;
+                ttsButton.innerHTML = `Hlas: Zapnutý <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15.414a2 2 0 01-2.828-2.828m0 0a2 2 0 012.828-2.828m-2.828 2.828L5.586 15.414zM10.15 4.54a2 2 0 013.7 0M8 8a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 12h.01M19 12h.01" /></svg>`;
             } else {
                 ttsButton.classList.remove('bg-blue-500', 'hover:bg-blue-400');
                 ttsButton.classList.add('bg-gray-700', 'hover:bg-gray-600');
@@ -228,8 +905,6 @@
                 }
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'sk-SK';
-                
-                // Načítanie hlasov a pokus o nájdenie slovenskej (sk) alebo českej (cs) hlasu
                 const voices = window.speechSynthesis.getVoices();
                 const slovakVoice = voices.find(voice => voice.lang.startsWith('sk'));
                 const czechVoice = voices.find(voice => voice.lang.startsWith('cs'));
@@ -240,26 +915,20 @@
                 } else if (czechVoice) {
                     utterance.voice = czechVoice;
                 } else if (englishVoice) {
-                    // Fallback to a common voice
                     utterance.voice = englishVoice;
                 }
-                
                 window.speechSynthesis.speak(utterance);
             }
         }
-        
-        // Zavolajte pri načítaní pre správnu ikonu
-        updateTtsButton();
 
-        // --- Funkcie pre Chat UI ---
-        const chatArea = document.getElementById('chat-messages');
-        const inputElement = document.getElementById('chat-input');
-        const sendButton = document.getElementById('send-button');
+        // --- Funkcie pre Chat UI a LLM (ponechané) ---
 
         function createMessageElement(sender, text, isStory = false) {
+            if (!chatArea) return; 
+
             const alignment = sender === 'user' ? 'justify-end' : 'justify-start';
             const bgColor = sender === 'user' ? 'bg-blue-500/80' : 'bg-blue-600/50';
-            const senderName = sender === 'user' ? 'Vy' : 'ChatSlovak AI V5 Model';
+            const senderName = sender === 'user' ? (currentUserData?.nickname || 'Vy') : 'ChatSlovak AI V5 Model';
             const roundStyle = sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none';
             const storyStyle = isStory ? 'border border-red-500 shadow-xl' : '';
             const textColor = isStory ? 'text-red-200' : (sender === 'user' ? 'text-white' : 'text-white');
@@ -267,20 +936,19 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `flex ${alignment}`;
             
-            // --- NOVÉ: Pridaná trieda message-enter pre animáciu správy ---
             messageDiv.innerHTML = `
                 <div class="${bgColor} glass-container p-4 rounded-xl ${roundStyle} max-w-3xl shadow-lg ${storyStyle} message-enter">
                     <p class="font-bold text-blue-200">${senderName}</p>
                     <div class="${textColor} mt-1 whitespace-pre-wrap">${text}</div>
                 </div>
             `;
-            // --- Koniec NOVÉHO kódu ---
-
             chatArea.appendChild(messageDiv);
             chatArea.scrollTop = chatArea.scrollHeight;
         }
 
         function addLoadingIndicator(messageId, storyMode) {
+            if (!chatArea) return;
+
             const loadingDiv = document.createElement('div');
             loadingDiv.id = messageId;
             loadingDiv.className = 'flex justify-start';
@@ -302,8 +970,6 @@
             }
         }
 
-        // --- LLM API Handling ---
-        
         async function callGeminiAPI(prompt, systemPrompt, tools, retries = 0) {
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
@@ -335,18 +1001,7 @@
                 const result = await response.json();
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Nastala chyba pri generovaní odpovede.";
                 
-                let sources = [];
-                const groundingMetadata = result.candidates?.[0]?.groundingMetadata;
-                if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                    sources = groundingMetadata.groundingAttributions
-                        .map(attribution => ({
-                            uri: attribution.web?.uri,
-                            title: attribution.web?.title,
-                        }))
-                        .filter(source => source.uri && source.title);
-                }
-
-                return { text, sources };
+                return { text, sources: [] }; 
 
             } catch (error) {
                 console.error("Chyba API volania:", error);
@@ -354,67 +1009,60 @@
             }
         }
 
-        // --- Hlavná Funkcia Odoslania Správy ---
-        window.sendMessage = async function() {
+        window.sendChatMessage = async function() {
+            if (currentView !== 'chat') return; 
+
+            const inputElement = document.getElementById('chat-input');
+            const sendButton = document.getElementById('send-button');
             const message = inputElement.value.trim();
-            // userId je vždy nastavené, takže stačí skontrolovať správu
+            
             if (!message) return; 
 
-            // 1. Zobrazenie správy používateľa a vyčistenie vstupu
             createMessageElement('user', message);
             inputElement.value = '';
             
-            // Dočasné zablokovanie vstupu počas generovania
             inputElement.disabled = true;
             sendButton.disabled = true;
 
             const isHorrorRequest = message.toLowerCase().includes('príbeh') || message.toLowerCase().includes('horor') || message.toLowerCase().includes('desivé') || message.toLowerCase().includes('strašidelný');
             
-            // 2. Nastavenie režimu AI
             let systemPrompt;
             let tools;
             let postStoryCue = "";
             
             if (isHorrorRequest) {
-                // Režim Hororového Generátora
                 systemPrompt = "Si ChatSlovak AI V5 Model, v režime 'Masívny Hororový Generátor'. Tvojou úlohou je vygenerovať extrémne desivý, strašidelný a temný krátky príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, psychologický teror a nečakané zvraty. Použi bohatý, opisný jazyk, ktorý navodzuje pocit absolútneho strachu. Príbeh musí byť maximálne desivý. Názov príbehu je povinný. Odpovedaj výlučne v slovenčine.";
-                tools = []; // Vypnutie Google Search pre kreatívne písanie
-                postStoryCue = "Thanking...\n\n"; // Požiadavka užívateľa na špeciálny text
+                tools = [];
+                postStoryCue = ""; // Odstránenie prebytočného textu
             } else {
-                // Režim Normálnej Konverzácie
                 systemPrompt = "Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine.";
-                tools = [{ "google_search": {} }]; // Zapnutie Google Search pre bežné otázky
+                tools = [{ "google_search": {} }];
             }
 
-            // 3. Zobrazenie indikátora načítania
             const loadingMessageId = `loading-${Date.now()}`;
             addLoadingIndicator(loadingMessageId, isHorrorRequest);
 
-            // 4. API Volanie
             const geminiResult = await callGeminiAPI(message, systemPrompt, tools);
 
-            // 5. Odstránenie indikátora načítania
             removeLoadingIndicator(loadingMessageId);
 
-            // 6. Formátovanie a zobrazenie odpovede
             let fullResponseText = postStoryCue + geminiResult.text;
             
             createMessageElement('ai', fullResponseText, isHorrorRequest);
             
-            // 7. Spustenie hlasového čítania
             speakText(fullResponseText);
 
-            // 8. Obnovenie vstupu
             inputElement.disabled = false;
             sendButton.disabled = false;
             inputElement.focus();
         }
+
+        // --- Spustenie Aplikácie ---
+        initializeApp();
         
-        // Exponovanie funkcie pre onclick v HTML
-        window.toggleSpeaking = toggleSpeaking;
-        window.sendMessage = sendMessage;
     </script>
 </body>
 </html>
+
 
 

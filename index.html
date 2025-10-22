@@ -13,7 +13,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 10vh;
+            min-height: 100vh; /* OPRAVA: Pre zväčšenie okna na celú výšku */
             background-image: url('https://placehold.co/1920x1080/1a1a2e/ffffff?text=Abstract+Dark+UI'); 
             background-size: cover; 
             background-position: center;
@@ -81,7 +81,8 @@
 </head>
 <body>
 
-    <div id="app-container" class="glass-container w-full max-w-4xl h-[90vh] flex flex-col rounded-3xl p-6 md:p-8 m-4 animate-fadeInUp">
+    <!-- ZVÄČŠENÁ VEĽKOSŤ: max-w-6xl a min-h-[95vh] pre viac miesta -->
+    <div id="app-container" class="glass-container w-full max-w-6xl min-h-[95vh] flex flex-col rounded-3xl p-6 md:p-8 m-4 animate-fadeInUp">
         <!-- Obsah bude generovaný dynamicky funkciou renderApp() -->
         <div class="flex-grow flex items-center justify-center">
             <div class="dot-pulse"></div>
@@ -789,6 +790,7 @@
                     <button onclick="fetchUsersForAdmin()" class="text-sm font-medium py-1 px-3 rounded-full bg-gray-600 hover:bg-gray-500 text-white">Obnoviť</button>
                 </div>
                 
+                <!-- Táto oblasť teraz využíva oveľa viac miesta na obrazovke -->
                 <div class="flex-grow overflow-y-auto pr-2">
                     ${listHtml}
                 </div>

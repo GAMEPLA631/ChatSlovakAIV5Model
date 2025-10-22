@@ -205,16 +205,17 @@
             </div>
 
             <!-- Oblasť Četu (Chat Area) -->
-            <div id="chat-area" class="w-full h-full custom-scrollbar space-y-4" style="display: none;">
-                <!-- Úvodná správa -->
-                <div class="flex justify-start">
-                    <div class="p-4 rounded-xl glass-card text-sm max-w-3xl">
-                        <p class="font-bold text-red-400 mb-1">ChatSlovak AI V5 Model</p>
-                        <p>Systém je inicializovaný. Som pripravený viesť konverzáciu, generovať príbehy, alebo ti nájsť fakty online.</p>
+            <!-- Zmenená štruktúra: ID chat-area teraz slúži ako obal (wrapper), scrollbar a medzery sú na #chat-messages. -->
+            <div id="chat-area" class="w-full h-full flex flex-col" style="display: none;">
+                <div id="chat-messages" class="flex-1 custom-scrollbar space-y-4 overflow-y-auto">
+                    <!-- Úvodná správa - Presunutá do #chat-messages pre správny flow -->
+                    <div class="flex justify-start">
+                        <div class="p-4 rounded-xl glass-card text-sm max-w-3xl">
+                            <p class="font-bold text-red-400 mb-1">ChatSlovak AI V5 Model</p>
+                            <p>Systém je inicializovaný. Som pripravený viesť konverzáciu, generovať príbehy, alebo ti nájsť fakty online.</p>
+                        </div>
                     </div>
-                </div>
-                <div id="chat-messages">
-                    <!-- Tu sa budú zobrazovať správy -->
+                    <!-- Tu sa budú zobrazovať dynamické správy -->
                 </div>
             </div>
 
@@ -267,7 +268,7 @@
         // Global UI Elements
         const promptInput = document.getElementById('prompt-input');
         const sendButton = document.getElementById('send-button');
-        const chatArea = document.getElementById('chat-messages'); // Zmenené z chat-area na chat-messages
+        const chatArea = document.getElementById('chat-messages'); // Message container where all content is appended
         const homeScreen = document.getElementById('home-screen');
         const contentDisplay = document.getElementById('content-display');
         const sidebar = document.getElementById('sidebar');
@@ -638,3 +639,4 @@
     </script>
 </body>
 </html>
+

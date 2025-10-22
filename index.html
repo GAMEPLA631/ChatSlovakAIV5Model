@@ -709,7 +709,7 @@
                                 
                                 <div class="flex space-x-2">
                                     <input type="number" id="duration-value-${user.email}" placeholder="Hodnota" value="7" min="1" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-1/3" ${user.isBanned ? 'disabled' : ''}>
-                                    <select id="duration-unit-${user.email}" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-2/3" ${user.isBanned ? 'disabled' : ''}>
+                                    <select type="text" id="duration-unit-${user.email}" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-2/3" ${user.isBanned ? 'disabled' : ''}>
                                         <option value="hours">Hodín</option>
                                         <option value="days" selected>Dní</option>
                                         <option value="weeks">Týždňov</option>
@@ -1016,35 +1016,65 @@
 
             const inputElement = document.getElementById('chat-input');
             const sendButton = document.getElementById('send-button');
-            const message = inputElement.value.trim();
+            let message = inputElement.value; // Získame pôvodnú správu pre zobrazenie
+            let processedMessage = inputElement.value.trim(); // Správa pre AI po spracovaní
             
-            if (!message) return; 
+            if (!processedMessage) return; 
 
+            // 1. Zobrazenie pôvodnej správy od užívateľa
             createMessageElement('user', message);
             inputElement.value = '';
             
             inputElement.disabled = true;
             sendButton.disabled = true;
+            
+            // 2. LOGIKA ODSTRÁNENIA NEŽELANÝCH TEXTOV (Vstupná Cenzúra)
+            // Odstráni text začínajúci *
+            if (processedMessage.includes('*')) {
+                processedMessage = processedMessage.replace(/\*.*$/, '').trim();
+            }
 
-            const isHorrorRequest = message.toLowerCase().includes('príbeh') || message.toLowerCase().includes('horor') || message.toLowerCase().includes('desivé') || message.toLowerCase().includes('strašidelný');
+            // Odstráni text začínajúci ##
+            if (processedMessage.includes('##')) {
+                processedMessage = processedMessage.replace(/##.*$/, '').trim();
+            }
+            
+            // Odstráni presný reťazec "Text-Of-Speed" (case-insensitive)
+            processedMessage = processedMessage.replace(/Text-Of-Speed/gi, '').trim();
+
+            // Ak po spracovaní zostala správa prázdna, ukončíme.
+            if (!processedMessage) {
+                 createMessageElement('ai', "Správa, ktorá sa mala odoslať, bola celá filtrovaná a je teraz prázdna. Prosím, napíšte novú správu bez filtrovaných označení.");
+                 inputElement.disabled = false;
+                 sendButton.disabled = false;
+                 inputElement.focus();
+                 return;
+            }
+            // KONIEC LOGIKY ODSTRÁNENIA
+
+            const isHorrorRequest = processedMessage.toLowerCase().includes('príbeh') || processedMessage.toLowerCase().includes('horor') || processedMessage.toLowerCase().includes('desivé') || processedMessage.toLowerCase().includes('strašidelný');
             
             let systemPrompt;
             let tools;
             let postStoryCue = "";
             
+            // Dodatok do System Promptu: ZAKÁZANÉ ZNAKY VÝSTUPU
+            const OUTPUT_CONSTRAINT = "Tvoj výstup NESMIE obsahovať znak '*' (hviezdička) ani reťazec '##' (dve mriežky). Zabezpeč, aby odpovede boli úplne čisté od týchto symbolov.";
+
             if (isHorrorRequest) {
-                systemPrompt = "Si ChatSlovak AI V5 Model, v režime 'Masívny Hororový Generátor'. Tvojou úlohou je vygenerovať extrémne desivý, strašidelný a temný krátky príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, psychologický teror a nečakané zvraty. Použi bohatý, opisný jazyk, ktorý navodzuje pocit absolútneho strachu. Príbeh musí byť maximálne desivý. Názov príbehu je povinný. Odpovedaj výlučne v slovenčine.";
+                systemPrompt = `Si ChatSlovak AI V5 Model, v režime 'Masívny Hororový Generátor'. Tvojou úlohou je vygenerovať extrémne desivý, strašidelný a temný krátky príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, psychologický teror a nečakané zvraty. Použi bohatý, opisný jazyk, ktorý navodzuje pocit absolútneho strachu. Príbeh musí byť maximálne desivý. Názov príbehu je povinný. Odpovedaj výlučne v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [];
-                postStoryCue = ""; // Odstránenie prebytočného textu
+                postStoryCue = ""; 
             } else {
-                systemPrompt = "Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine.";
+                systemPrompt = `Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [{ "google_search": {} }];
             }
 
             const loadingMessageId = `loading-${Date.now()}`;
             addLoadingIndicator(loadingMessageId, isHorrorRequest);
 
-            const geminiResult = await callGeminiAPI(message, systemPrompt, tools);
+            // Odoslanie už spracovanej správy
+            const geminiResult = await callGeminiAPI(processedMessage, systemPrompt, tools);
 
             removeLoadingIndicator(loadingMessageId);
 
@@ -1065,6 +1095,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 

@@ -152,6 +152,12 @@
         function formatDate(isoString) {
             if (!isoString) return 'N/A';
             try {
+                // NOVINKA: Kontrola trvalého banu
+                const permanentMarker = '9999-12-31T';
+                if (isoString.startsWith(permanentMarker)) {
+                    return 'TRVALÝ BAN (manuálne odblokovanie nutné)';
+                }
+                
                 return new Date(isoString).toLocaleString('sk-SK', { 
                     year: 'numeric', month: 'short', day: 'numeric', 
                     hour: '2-digit', minute: '2-digit' 
@@ -212,7 +218,10 @@
                 currentBanDetails = userProfile.ban;
                 const banEndDate = new Date(currentBanDetails.endDate);
                 
-                if (banEndDate > new Date()) {
+                // Kontrola trvalého banu (rokom 9999) alebo časového banu
+                const isPermanent = currentBanDetails.endDate.startsWith('9999-12-31T');
+                
+                if (isPermanent || banEndDate > new Date()) {
                     currentBanDetails.isActive = true;
                     currentBanDetails.errorCode = 403; 
                     currentView = 'banned';
@@ -330,14 +339,16 @@
                     // Kontrola aktuálneho stavu banu pred zobrazením
                     if (user.ban) {
                         const banEndDate = new Date(user.ban.endDate);
-                        if (banEndDate <= new Date()) {
-                            // Ban vypršal, vyčistíme ho lokálne pre zobrazenie
-                            clearBanStatus(email); // Odstránenie prešlého banu
-                            user.isBanned = false;
-                        } else {
+                        const isPermanent = user.ban.endDate.startsWith('9999-12-31T');
+                        
+                        if (isPermanent || banEndDate > new Date()) {
                             user.isBanned = true;
                             user.banReason = user.ban.reason;
                             user.banEnd = user.ban.endDate;
+                        } else {
+                            // Ban vypršal, vyčistíme ho lokálne pre zobrazenie
+                            clearBanStatus(email); // Odstránenie prešlého banu
+                            user.isBanned = false;
                         }
                     } else {
                         user.isBanned = false;
@@ -348,10 +359,24 @@
             renderApp();
         }
         
-        // Pomocná funkcia pre výpočet koncového dátumu Banu
+        /**
+         * Pomocná funkcia pre výpočet koncového dátumu Banu
+         */
         function calculateBanEndDate(durationValue, durationUnit) {
+            // 1. Logika pre TRVALÝ BAN
+            if (durationUnit === 'permanent') {
+                // Extrémne vzdialený dátum pre označenie 'trvalého' (rok 9999)
+                return new Date('9999-12-31T23:59:59.000Z');
+            }
+            
+            // 2. Logika pre časovo obmedzené bany
             const banEndDate = new Date();
             
+            // Kontrola platnosti hodnoty pre časové bany
+            if (isNaN(durationValue) || durationValue <= 0) {
+                 throw new Error('Doba banu musí byť platné kladné číslo pre časovo obmedzený ban.');
+            }
+
             switch (durationUnit) {
                 case 'hours':
                     banEndDate.setHours(banEndDate.getHours() + durationValue);
@@ -382,7 +407,11 @@
             const durationUnit = document.getElementById(`duration-unit-${email}`).value;
             
             if (!reason) return showModal('Chyba', 'Dôvod banu je povinný.');
-            if (isNaN(durationValue) || durationValue <= 0) return showModal('Chyba', 'Doba banu musí byť platné kladné číslo.');
+            
+            // Validácia len ak nejde o trvalý ban
+            if (durationUnit !== 'permanent' && (isNaN(durationValue) || durationValue <= 0)) {
+                 return showModal('Chyba', 'Doba banu musí byť platné kladné číslo pre časovo obmedzený ban.');
+            }
 
             try {
                 const banEndDate = calculateBanEndDate(durationValue, durationUnit);
@@ -397,8 +426,9 @@
                 if (users[email]) {
                     users[email].ban = banData;
                     saveUsers(users);
-
-                    showModal('Úspech', `Užívateľ ${users[email].nickname} (${email}) bol úspešne zabanovaný na ${durationValue} ${durationUnit} (do ${formatDate(banEndDate.toISOString())}).`, 'bg-green-600');
+                    
+                    const durationMessage = durationUnit === 'permanent' ? 'TRVALO' : `na ${durationValue} ${durationUnit}`;
+                    showModal('Úspech', `Užívateľ ${users[email].nickname} (${email}) bol úspešne zabanovaný ${durationMessage} (do ${formatDate(banEndDate.toISOString())}).`, 'bg-green-600');
                     fetchUsersForAdmin(); // Obnovenie zoznamu
                 } else {
                     showModal('Chyba', `Užívateľ ${email} nebol nájdený.`);
@@ -420,7 +450,11 @@
             // 1. Validácia
             if (!nickname) return showModal('Chyba', 'Prosím, zadajte prezývku užívateľa, ktorého chcete zabanovať.');
             if (!reason) return showModal('Chyba', 'Dôvod banu je povinný.');
-            if (isNaN(durationValue) || durationValue <= 0) return showModal('Chyba', 'Doba banu musí byť platné kladné číslo.');
+            
+            // Validácia len ak nejde o trvalý ban
+            if (durationUnit !== 'permanent' && (isNaN(durationValue) || durationValue <= 0)) {
+                 return showModal('Chyba', 'Doba banu musí byť platné kladné číslo pre časovo obmedzený ban.');
+            }
 
             // 2. Nájsť užívateľa podľa prezývky
             const users = loadUsers();
@@ -460,7 +494,8 @@
                 users[targetUserEmail].ban = banData;
                 saveUsers(users);
 
-                showModal('Úspech', `Užívateľ "${targetUserNickname}" (${targetUserEmail}) bol úspešne zabanovaný na ${durationValue} ${durationUnit} (do ${formatDate(banEndDate.toISOString())}).`, 'bg-green-600');
+                const durationMessage = durationUnit === 'permanent' ? 'TRVALO' : `na ${durationValue} ${durationUnit}`;
+                showModal('Úspech', `Užívateľ "${targetUserNickname}" (${targetUserEmail}) bol úspešne zabanovaný ${durationMessage} (do ${formatDate(banEndDate.toISOString())}).`, 'bg-green-600');
                 
                 // Vyčistíme polia po úspešnom bane
                 document.getElementById('quick-ban-nickname').value = '';
@@ -646,7 +681,7 @@
             if (!currentBanDetails) return renderAuthView(); // Fallback
             
             const reason = currentBanDetails.reason || 'Žiadny dôvod nebol uvedený.';
-            const endDate = new Date(currentBanDetails.endDate).toLocaleString('sk-SK');
+            const endDate = formatDate(currentBanDetails.endDate);
             const errorCode = currentBanDetails.errorCode || '403'; 
 
             return `
@@ -705,7 +740,7 @@
                             <!-- Ovládanie Banu -->
                             <div class="flex flex-col space-y-2 w-full md:w-80">
                                 <!-- Polia pre BAN -->
-                                <input type="text" id="reason-${user.email}" placeholder="Dôvod banu (povinné)" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-full" ${user.isBanned ? 'disabled' : ''}>
+                                <textarea id="reason-${user.email}" rows="2" placeholder="Dôvod banu (povinný - dlhý text OK)" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-full resize-none" ${user.isBanned ? 'disabled' : ''}></textarea>
                                 
                                 <div class="flex space-x-2">
                                     <input type="number" id="duration-value-${user.email}" placeholder="Hodnota" value="7" min="1" class="p-2 rounded-lg bg-black/30 text-white/90 border border-white/20 text-sm w-1/3" ${user.isBanned ? 'disabled' : ''}>
@@ -715,6 +750,7 @@
                                         <option value="weeks">Týždňov</option>
                                         <option value="months">Mesiacov</option>
                                         <option value="years">Rokov</option>
+                                        <option value="permanent">TRVALÝ</option> <!-- NOVINKA -->
                                     </select>
                                 </div>
 
@@ -744,8 +780,8 @@
                         <!-- Input pre prezývku -->
                         <input type="text" id="quick-ban-nickname" placeholder="Prezývka na zabanovanie" class="w-full p-3 mb-3 rounded-lg bg-black/30 text-white/90 border border-red-500/50 focus:ring-red-500 focus:outline-none">
                         
-                        <!-- Dôvod Banu -->
-                        <input type="text" id="quick-ban-reason" placeholder="Dôvod banu (povinné)" class="w-full p-3 mb-3 rounded-lg bg-black/30 text-white/90 border border-white/20 focus:ring-blue-500 focus:outline-none">
+                        <!-- Dôvod Banu (Použijeme textarea pre dlhý text) -->
+                        <textarea id="quick-ban-reason" rows="2" placeholder="Dôvod banu (povinný - dlhý text OK)" class="w-full p-3 mb-3 rounded-lg bg-black/30 text-white/90 border border-white/20 focus:ring-blue-500 focus:outline-none resize-none"></textarea>
                         
                         <!-- Trvanie Banu -->
                         <div class="flex space-x-3 mb-4">
@@ -756,6 +792,7 @@
                                 <option value="weeks">Týždňov</option>
                                 <option value="months">Mesiacov</option>
                                 <option value="years">Rokov</option>
+                                <option value="permanent">TRVALÝ</option> <!-- NOVINKA -->
                             </select>
                         </div>
 
@@ -1095,6 +1132,7 @@
     </script>
 </body>
 </html>
+
 
 
 

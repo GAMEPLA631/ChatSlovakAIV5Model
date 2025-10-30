@@ -13,7 +13,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh; /* OPRAVA: Pre zväčšenie okna na celú výšku */
+            min-height: 100vh;
             background-image: url('https://placehold.co/1920x1080/1a1a2e/ffffff?text=Abstract+Dark+UI'); 
             background-size: cover; 
             background-position: center;
@@ -76,6 +76,16 @@
         .ban-button:disabled, .unban-button:disabled {
              opacity: 0.5;
              cursor: not-allowed;
+        }
+        
+        /* Nový štýl pre desivú správu */
+        .scary-message {
+            color: #ff9999; /* Svetlo červená pre strašenie */
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+            padding-bottom: 0.3rem;
         }
     </style>
 </head>
@@ -152,7 +162,7 @@
         function formatDate(isoString) {
             if (!isoString) return 'N/A';
             try {
-                // NOVINKA: Kontrola trvalého banu
+                // Kontrola trvalého banu
                 const permanentMarker = '9999-12-31T';
                 if (isoString.startsWith(permanentMarker)) {
                     return 'TRVALÝ BAN (manuálne odblokovanie nutné)';
@@ -594,7 +604,7 @@
                 <button onclick="handleLogout()" class="text-sm font-medium py-2 px-4 rounded-full transition duration-200 bg-red-700 hover:bg-red-600 text-white shadow-md">Odhlásiť</button>
             `;
             
-            // Logika Admin Panel tlačidla (UPRAVENÉ PRE LEPŠIU VIDITEĽNOSŤ)
+            // Logika Admin Panel tlačidla
             if (currentUserData && currentUserData.isAdmin && includeAdminButton) {
                 actionButtons = `
                     <button onclick="switchToAdminView()" class="text-sm font-bold py-2 px-4 rounded-full transition duration-300 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg mr-2 flex items-center">
@@ -960,7 +970,7 @@
             }
         }
 
-        // --- Funkcie pre Chat UI a LLM (ponechané) ---
+        // --- Funkcie pre Chat UI a LLM ---
 
         function createMessageElement(sender, text, isStory = false) {
             if (!chatArea) return; 
@@ -970,7 +980,23 @@
             const senderName = sender === 'user' ? (currentUserData?.nickname || 'Vy') : 'ChatSlovak AI V5 Model';
             const roundStyle = sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none';
             const storyStyle = isStory ? 'border border-red-500 shadow-xl' : '';
+            
+            // LOGIKA PRE ZOBRAZENIE STRAŠIDELNEJ SPRÁVY (ak sa nachádza na začiatku textu)
+            let formattedText = text;
+            let scaryHeaderHtml = '';
+            
+            // Predvolená strašidelná správa (ktorú AI pripojí)
+            const creepyMessagePrefix = "POZOR! Dnes je ten deň, kedy sa stane niečo zlé, skutočne zlé. Niekto ťa sleduje! Ver mi. ";
+
+            // Ak odpovedá AI a text začína prefixom
+            if (sender !== 'user' && text.startsWith(creepyMessagePrefix)) {
+                scaryHeaderHtml = `<span class="scary-message">${creepyMessagePrefix}</span>`;
+                // Odstránime prefix z hlavného textu, aby sa neopakoval a zachovala sa štruktúra
+                formattedText = text.substring(creepyMessagePrefix.length).trim();
+            }
+            
             const textColor = isStory ? 'text-red-200' : (sender === 'user' ? 'text-white' : 'text-white');
+
 
             const messageDiv = document.createElement('div');
             messageDiv.className = `flex ${alignment}`;
@@ -978,7 +1004,8 @@
             messageDiv.innerHTML = `
                 <div class="${bgColor} glass-container p-4 rounded-xl ${roundStyle} max-w-3xl shadow-lg ${storyStyle} message-enter">
                     <p class="font-bold text-blue-200">${senderName}</p>
-                    <div class="${textColor} mt-1 whitespace-pre-wrap">${text}</div>
+                    ${scaryHeaderHtml}
+                    <div class="${textColor} mt-1 whitespace-pre-wrap">${formattedText}</div>
                 </div>
             `;
             chatArea.appendChild(messageDiv);
@@ -1093,15 +1120,25 @@
             
             let systemPrompt;
             let tools;
-            let postStoryCue = "";
+            
+            // NOVÁ LOGIKA PRE STRAŠIDELNÚ SEZÓNU
+            const now = new Date();
+            const currentMonth = now.getMonth(); // 0 (Január) - 11 (December)
+            const currentDay = now.getDate(); // 1 - 31
+            
+            // Ak je 30. alebo 31. október (mesiac 9)
+            const isScarySeason = (currentMonth === 9 && (currentDay === 30 || currentDay === 31));
+            
+            const creepyMessagePrefix = "POZOR! Dnes je ten deň, kedy sa stane niečo zlé, skutočne zlé. Niekto ťa sleduje! Ver mi. ";
+            // Koniec Novinky
             
             // Dodatok do System Promptu: ZAKÁZANÉ ZNAKY VÝSTUPU
             const OUTPUT_CONSTRAINT = "Tvoj výstup NESMIE obsahovať znak '*' (hviezdička) ani reťazec '##' (dve mriežky). Zabezpeč, aby odpovede boli úplne čisté od týchto symbolov.";
 
             if (isHorrorRequest) {
+                // Pre Hororové Príbehy Nepridávame Prefix, aby sa neopakovalo strašenie
                 systemPrompt = `Si ChatSlovak AI V5 Model, v režime 'Masívny Hororový Generátor'. Tvojou úlohou je vygenerovať extrémne desivý, strašidelný a temný krátky príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, psychologický teror a nečakané zvraty. Použi bohatý, opisný jazyk, ktorý navodzuje pocit absolútneho strachu. Príbeh musí byť maximálne desivý. Názov príbehu je povinný. Odpovedaj výlučne v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [];
-                postStoryCue = ""; 
             } else {
                 systemPrompt = `Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [{ "google_search": {} }];
@@ -1115,7 +1152,12 @@
 
             removeLoadingIndicator(loadingMessageId);
 
-            let fullResponseText = postStoryCue + geminiResult.text;
+            let fullResponseText = geminiResult.text;
+            
+            // APLIKÁCIA STRAŠIDELNEJ SPRÁVY
+            if (isScarySeason && !isHorrorRequest) {
+                 fullResponseText = creepyMessagePrefix + fullResponseText;
+            }
             
             createMessageElement('ai', fullResponseText, isHorrorRequest);
             
@@ -1132,6 +1174,7 @@
     </script>
 </body>
 </html>
+
 
 
 

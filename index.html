@@ -78,9 +78,9 @@
              cursor: not-allowed;
         }
         
-        /* Nový štýl pre desivú správu */
+        /* Štýl pre špeciálne správy (príbehy, spooky správy) */
         .scary-message {
-            color: #ff9999; /* Svetlo červená pre strašenie */
+            color: #ff9999; 
             font-weight: bold;
             display: block;
             margin-bottom: 0.5rem;
@@ -847,7 +847,7 @@
         function renderChatView() {
             return `
                 <!-- Chat Header s tlačidlom Admin Panel pre Adminov -->
-                ${renderHeader('ChatSlovak AI V5 Model', 'Profesionálny konverzačný partner. Píše masívne desivé príbehy.', currentUserData?.nickname, true)}
+                ${renderHeader('ChatSlovak AI V5 Model', 'Profesionálny konverzačný partner. Píše rozsiahle príbehy.', currentUserData?.nickname, true)}
                 
                 <!-- Tlačidlá Funkcií -->
                 <div class="flex justify-start mb-4">
@@ -866,7 +866,7 @@
                     <div class="flex justify-start">
                         <div class="bg-blue-600/50 glass-container p-3 rounded-xl rounded-tl-none max-w-3xl shadow-lg message-enter">
                             <p class="font-bold text-blue-200">ChatSlovak AI V5 Model</p>
-                            <p class="text-white mt-1">Dobrý deň, ${currentUserData?.nickname}. Som pripravený na konverzáciu. Povedzte mi, ako vám môžem pomôcť, alebo mi zadajte príkaz 'napíš mi hororový príbeh'.</p>
+                            <p class="text-white mt-1">Dobrý deň, ${currentUserData?.nickname}. Som pripravený na konverzáciu. Povedzte mi, ako vám môžem pomôcť, alebo mi zadajte príkaz 'napíš mi príbeh'.</p>
                         </div>
                     </div>
                     <!-- Správy budú pridané sem -->
@@ -917,8 +917,32 @@
             }
         }
 
+        /**
+         * Filter pre text pred odoslaním do TTS.
+         * Odstránenie formátovacích znakov (** a ##) bolo prenesené do systémovej inštrukcie AI, 
+         * ale ponecháme robustný filter pre prípad, že by AI pravidlo ignorovala.
+         * @param {string} text 
+         * @returns {string} Filtrovaný text.
+         */
+        function filterTextForSpeech(text) {
+            // 1. Odstráňte explicitný prefix, ak tam je, aby sa nečítal ako obyčajný text
+            const creepyPrefix = "Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu";
+            if (text.startsWith(creepyPrefix)) {
+                text = text.substring(creepyPrefix.length).trim();
+            }
+            
+            // 2. Odstráňte znaky Markdownu
+            let filtered = text.replace(/\*\*([^\*]*)\*\*/g, '$1').trim(); // **text** -> text
+            filtered = filtered.replace(/\*/g, '').trim(); 
+            filtered = filtered.replace(/##/g, '').trim(); 
+            filtered = filtered.replace(/#/g, '').trim(); // Pre istotu aj jednoduché #
 
-        // --- Funkcie pre Hlasové Čítanie (TTS) - ponechané ---
+            // Nahraďte viacero medzier jednou medzerou a odstráňte medzery na krajoch
+            return filtered.replace(/\s+/g, ' ').trim();
+        }
+
+
+        // --- Funkcie pre Hlasové Čítanie (TTS) ---
         let isSpeakingEnabled = false;
         
         function updateTtsButton() {
@@ -952,7 +976,13 @@
                 if (window.speechSynthesis.speaking) {
                     window.speechSynthesis.cancel();
                 }
-                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // --- FILTROVANIE TEXTU PRED ČÍTANÍM ---
+                const textToSpeak = filterTextForSpeech(text);
+                
+                if (!textToSpeak) return; // Ak je text prázdny po filtrovaní, nehovoríme
+
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = 'sk-SK';
                 const voices = window.speechSynthesis.getVoices();
                 const slovakVoice = voices.find(voice => voice.lang.startsWith('sk'));
@@ -972,39 +1002,26 @@
 
         // --- Funkcie pre Chat UI a LLM ---
 
-        function createMessageElement(sender, text, isStory = false) {
+        function createMessageElement(sender, text, isSpecialAesthetic = false) {
             if (!chatArea) return; 
 
             const alignment = sender === 'user' ? 'justify-end' : 'justify-start';
-            const bgColor = sender === 'user' ? 'bg-blue-500/80' : 'bg-blue-600/50';
+            // Špeciálny štýl (príbeh alebo spooky)
+            const bgColor = sender === 'user' ? 'bg-blue-500/80' : isSpecialAesthetic ? 'bg-red-800/40' : 'bg-blue-600/50';
             const senderName = sender === 'user' ? (currentUserData?.nickname || 'Vy') : 'ChatSlovak AI V5 Model';
             const roundStyle = sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none';
-            const storyStyle = isStory ? 'border border-red-500 shadow-xl' : '';
+            const specialStyle = isSpecialAesthetic ? 'border border-red-500 shadow-xl' : '';
             
-            // LOGIKA PRE ZOBRAZENIE STRAŠIDELNEJ SPRÁVY (ak sa nachádza na začiatku textu)
+            const textColor = isSpecialAesthetic ? 'text-red-100' : (sender === 'user' ? 'text-white' : 'text-white');
+
             let formattedText = text;
-            let scaryHeaderHtml = '';
             
-            // Predvolená strašidelná správa (ktorú AI pripojí)
-            const creepyMessagePrefix = "POZOR! Dnes je ten deň, kedy sa stane niečo zlé, skutočne zlé. Niekto ťa sleduje! Ver mi. ";
-
-            // Ak odpovedá AI a text začína prefixom
-            if (sender !== 'user' && text.startsWith(creepyMessagePrefix)) {
-                scaryHeaderHtml = `<span class="scary-message">${creepyMessagePrefix}</span>`;
-                // Odstránime prefix z hlavného textu, aby sa neopakoval a zachovala sa štruktúra
-                formattedText = text.substring(creepyMessagePrefix.length).trim();
-            }
-            
-            const textColor = isStory ? 'text-red-200' : (sender === 'user' ? 'text-white' : 'text-white');
-
-
             const messageDiv = document.createElement('div');
             messageDiv.className = `flex ${alignment}`;
             
             messageDiv.innerHTML = `
-                <div class="${bgColor} glass-container p-4 rounded-xl ${roundStyle} max-w-3xl shadow-lg ${storyStyle} message-enter">
+                <div class="${bgColor} glass-container p-4 rounded-xl ${roundStyle} max-w-3xl shadow-lg ${specialStyle} message-enter">
                     <p class="font-bold text-blue-200">${senderName}</p>
-                    ${scaryHeaderHtml}
                     <div class="${textColor} mt-1 whitespace-pre-wrap">${formattedText}</div>
                 </div>
             `;
@@ -1021,7 +1038,7 @@
             loadingDiv.innerHTML = `
                 <div class="bg-gray-700/50 glass-container p-4 rounded-xl rounded-tl-none max-w-3xl shadow-lg flex items-center message-enter">
                     <div class="dot-pulse mr-4"></div>
-                    <p class="text-white/70">${storyMode ? 'Generujem masívne hororový príbeh...' : 'ChatSlovak AI premýšľa...'}</p>
+                    <p class="text-white/70">${storyMode ? 'Generujem rozsiahly príbeh...' : 'ChatSlovak AI premýšľa...'}</p>
                 </div>
             `;
             chatArea.appendChild(loadingDiv);
@@ -1080,7 +1097,7 @@
 
             const inputElement = document.getElementById('chat-input');
             const sendButton = document.getElementById('send-button');
-            let message = inputElement.value; // Získame pôvodnú správu pre zobrazenie
+            let message = inputElement.value; // Pôvodná správa od užívateľa
             let processedMessage = inputElement.value.trim(); // Správa pre AI po spracovaní
             
             if (!processedMessage) return; 
@@ -1092,7 +1109,8 @@
             inputElement.disabled = true;
             sendButton.disabled = true;
             
-            // 2. LOGIKA ODSTRÁNENIA NEŽELANÝCH TEXTOV (Vstupná Cenzúra)
+            // 2. LOGIKA FILTROVANIA PRED ODOSLANÍM (Filtrovanie vstupu užívateľa)
+            // Tieto filtre ostávajú, aby AI nedostala pokyn s označeniami ** a ##
             // Odstráni text začínajúci *
             if (processedMessage.includes('*')) {
                 processedMessage = processedMessage.replace(/\*.*$/, '').trim();
@@ -1106,7 +1124,6 @@
             // Odstráni presný reťazec "Text-Of-Speed" (case-insensitive)
             processedMessage = processedMessage.replace(/Text-Of-Speed/gi, '').trim();
 
-            // Ak po spracovaní zostala správa prázdna, ukončíme.
             if (!processedMessage) {
                  createMessageElement('ai', "Správa, ktorá sa mala odoslať, bola celá filtrovaná a je teraz prázdna. Prosím, napíšte novú správu bez filtrovaných označení.");
                  inputElement.disabled = false;
@@ -1114,30 +1131,39 @@
                  inputElement.focus();
                  return;
             }
-            // KONIEC LOGIKY ODSTRÁNENIA
+            // KONIEC LOGIKY FILTROVANIA VSTUPU
+            
+            // 3. LOGIKA ŠPECIÁLNYCH REŽIMOV
+            const isStoryRequest = processedMessage.toLowerCase().includes('príbeh');
+            const now = new Date();
+            
+            // --- NOVÁ LOGIKA PRE HALLOWEEN (31. Október) ---
+            // Október je mesiac 9 (0-indexované)
+            const isSpookySeason = (now.getMonth() === 9 && now.getDate() === 31);
+            
+            // Prefix, ktorý si želal užívateľ (aktualizovaný text)
+            const creepyMessagePrefixText = "Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu"; 
+            
+            let fullPrompt = processedMessage;
+            let isSpookyMessage = false;
+            let isSpecialAesthetic = isStoryRequest; // Estetika pre príbehy
 
-            const isHorrorRequest = processedMessage.toLowerCase().includes('príbeh') || processedMessage.toLowerCase().includes('horor') || processedMessage.toLowerCase().includes('desivé') || processedMessage.toLowerCase().includes('strašidelný');
+            if (isSpookySeason && !isStoryRequest) {
+                // Ak je Halloween a NIE JE to požiadavka na príbeh, pridáme prefix do promptu.
+                fullPrompt = `Napíš pútavú odpoveď na toto: "${processedMessage}" (Zahrň do tónu pocit, akoby: ${creepyMessagePrefixText}).`; 
+                isSpookyMessage = true;
+                isSpecialAesthetic = true; // Zapneme spooky estetiku (červený štýl)
+            }
+            
+            // 4. SYSTÉMOVÝ PRÍKAZ S NOVÝM OBMEDZENÍM
+            // OBMEDZENIE: Zákaz generovania ** a ##
+            const OUTPUT_CONSTRAINT = "Tvoj výstup NESMIE obsahovať znak '*' (hviezdička) ani reťazec '##' (dve mriežky). Zabezpeč, aby odpovede boli úplne čisté od týchto symbolov. Ak máš písať príbeh, použi len obyčajný text a odseky, bez formátovania tučnými znakmi.";
             
             let systemPrompt;
             let tools;
-            
-            // NOVÁ LOGIKA PRE STRAŠIDELNÚ SEZÓNU
-            const now = new Date();
-            const currentMonth = now.getMonth(); // 0 (Január) - 11 (December)
-            const currentDay = now.getDate(); // 1 - 31
-            
-            // Ak je 30. alebo 31. október (mesiac 9)
-            const isScarySeason = (currentMonth === 9 && (currentDay === 30 || currentDay === 31));
-            
-            const creepyMessagePrefix = "POZOR! Dnes je ten deň, kedy sa stane niečo zlé, skutočne zlé. Niekto ťa sleduje! Ver mi. ";
-            // Koniec Novinky
-            
-            // Dodatok do System Promptu: ZAKÁZANÉ ZNAKY VÝSTUPU
-            const OUTPUT_CONSTRAINT = "Tvoj výstup NESMIE obsahovať znak '*' (hviezdička) ani reťazec '##' (dve mriežky). Zabezpeč, aby odpovede boli úplne čisté od týchto symbolov.";
 
-            if (isHorrorRequest) {
-                // Pre Hororové Príbehy Nepridávame Prefix, aby sa neopakovalo strašenie
-                systemPrompt = `Si ChatSlovak AI V5 Model, v režime 'Masívny Hororový Generátor'. Tvojou úlohou je vygenerovať extrémne desivý, strašidelný a temný krátky príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, psychologický teror a nečakané zvraty. Použi bohatý, opisný jazyk, ktorý navodzuje pocit absolútneho strachu. Príbeh musí byť maximálne desivý. Názov príbehu je povinný. Odpovedaj výlučne v slovenčine. ${OUTPUT_CONSTRAINT}`;
+            if (isStoryRequest) {
+                systemPrompt = `Si ChatSlovak AI V5 Model, v režime 'Rozsiahly Príbehový Generátor'. Tvojou úlohou je vygenerovať pútavý a dlhý príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, detailné opisy a pútavé postavy. Príbeh musí mať názov a musí byť rozsiahly. Odpovedaj výlučne v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [];
             } else {
                 systemPrompt = `Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine. ${OUTPUT_CONSTRAINT}`;
@@ -1145,23 +1171,25 @@
             }
 
             const loadingMessageId = `loading-${Date.now()}`;
-            addLoadingIndicator(loadingMessageId, isHorrorRequest);
+            addLoadingIndicator(loadingMessageId, isStoryRequest);
 
             // Odoslanie už spracovanej správy
-            const geminiResult = await callGeminiAPI(processedMessage, systemPrompt, tools);
+            const geminiResult = await callGeminiAPI(fullPrompt, systemPrompt, tools);
 
             removeLoadingIndicator(loadingMessageId);
 
-            let fullResponseText = geminiResult.text;
+            let aiDisplayMessage = geminiResult.text;
             
-            // APLIKÁCIA STRAŠIDELNEJ SPRÁVY
-            if (isScarySeason && !isHorrorRequest) {
-                 fullResponseText = creepyMessagePrefix + fullResponseText;
+            // Ak je to spooky správa, pridáme prefix len k zobrazeniu (lebo prompt uz ho obsahoval)
+            if (isSpookyMessage) {
+                // Pridanie prefixu priamo do zobrazenia s použitím CSS triedy
+                aiDisplayMessage = `<span class="scary-message">${creepyMessagePrefixText}</span>\n\n${aiDisplayMessage}`;
             }
             
-            createMessageElement('ai', fullResponseText, isHorrorRequest);
+            // Vytvorenie správy (isSpecialAesthetic je true pre príbehy a spooky správy)
+            createMessageElement('ai', aiDisplayMessage, isSpecialAesthetic);
             
-            speakText(fullResponseText);
+            speakText(aiDisplayMessage); 
 
             inputElement.disabled = false;
             sendButton.disabled = false;
@@ -1174,9 +1202,6 @@
     </script>
 </body>
 </html>
-
-
-
 
 
 

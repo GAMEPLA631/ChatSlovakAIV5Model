@@ -115,6 +115,9 @@
         let currentView = 'loading'; // 'loading', 'auth', 'register', 'chat', 'admin', 'banned'
         let usersForAdmin = []; // Zoznam používateľov pre Admin Panel
         
+        // NOVÁ PREMENNÁ: Konverzačná história pre kontext v rámci jednej relácie (do obnovenia stránky)
+        let chatHistory = []; 
+
         // UI prvky
         const appContainer = document.getElementById('app-container');
         let chatArea = null; 
@@ -314,6 +317,9 @@
         }
         
         window.handleLogout = function() {
+            // VYMAZANIE PAMÄTE KONVERZÁCIE pri odhlásení
+            chatHistory = []; 
+            
             setCurrentUserEmail(null);
             currentUserData = null;
             currentBanDetails = null;
@@ -816,7 +822,7 @@
                     <div class="p-5 glass-container bg-green-900/20 rounded-xl border border-green-500/50">
                         <h2 class="text-2xl font-bold mb-4 text-green-300">Rýchle ODBAN Podľa Prezývky</h2>
                         
-                        <!-- Input pre prezývku na odbanovanie -->
+                        <!-- Input pre prezývku na odblokovanie -->
                         <input type="text" id="quick-unban-nickname" placeholder="Prezývka na odblokovanie" class="w-full p-3 mb-4 rounded-lg bg-black/30 text-white/90 border border-green-500/50 focus:ring-green-500 focus:outline-none">
                         
                         <div class="h-[120px] mb-4 flex items-center justify-center">
@@ -847,7 +853,7 @@
         function renderChatView() {
             return `
                 <!-- Chat Header s tlačidlom Admin Panel pre Adminov -->
-                ${renderHeader('ChatSlovak AI V5 Model', 'Profesionálny konverzačný partner. Píše rozsiahle príbehy.', currentUserData?.nickname, true)}
+                ${renderHeader('ChatSlovak AI V5 Model (S Pamäťou Relácie)', 'Profesionálny konverzačný partner. Píše rozsiahle príbehy.', currentUserData?.nickname, true)}
                 
                 <!-- Tlačidlá Funkcií -->
                 <div class="flex justify-start mb-4">
@@ -867,9 +873,10 @@
                         <div class="bg-blue-600/50 glass-container p-3 rounded-xl rounded-tl-none max-w-3xl shadow-lg message-enter">
                             <p class="font-bold text-blue-200">ChatSlovak AI V5 Model</p>
                             <p class="text-white mt-1">Dobrý deň, ${currentUserData?.nickname}. Som pripravený na konverzáciu. Povedzte mi, ako vám môžem pomôcť, alebo mi zadajte príkaz 'napíš mi príbeh'.</p>
+                            <p class="text-xs text-white/50 mt-2">Pamätám si všetky správy v tejto relácii (do obnovenia stránky).</p>
                         </div>
                     </div>
-                    <!-- Správy budú pridané sem -->
+                    <!-- Správy budú pridané sem (staré správy z chatHistory sa pri renderovaní NEREGENERUJÚ, lebo chatHistory sa pri prechode view-mi nevymazáva) -->
                 </div>
 
                 <!-- Vstupná Oblasť -->
@@ -914,7 +921,66 @@
             if (currentView === 'chat') {
                  chatArea = document.getElementById('chat-messages');
                  updateTtsButton(); // Obnovenie tlačidla TTS
+                 
+                 // NOVINKA: Zobrazenie obnovenej histórie
+                 renderChatHistory(); 
             }
+        }
+        
+        /**
+         * NOVINKA: Prekreslí všetky správy z chatHistory do UI.
+         */
+        function renderChatHistory() {
+            if (!chatArea || chatHistory.length === 0) return;
+
+            // Vyčistiť len dynamické správy (ponechať úvodnú správu)
+            while (chatArea.children.length > 1) {
+                chatArea.removeChild(chatArea.lastChild);
+            }
+
+            // Prejsť históriu a prekresliť ju
+            chatHistory.forEach(message => {
+                const text = message.parts[0].text;
+                const sender = message.role === 'user' ? 'user' : 'ai';
+                
+                // Určenie, či použiť špeciálnu estetiku (pre AI správy, ktoré boli spooky alebo príbehy)
+                // Toto je heuristika, keďže pôvodná správa neuchováva flag isSpecialAesthetic
+                const isSpecialAesthetic = sender === 'ai' && (
+                    text.startsWith('Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu') || 
+                    text.length > 300 // Dlhé správy predpokladáme, že sú príbehy
+                );
+                
+                // Pre správne zobrazenie spooky prefixu v UI (bolo pridané len k UI textu, nie do histórie)
+                let displayMessage = text;
+                const spookyPrefix = "Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu";
+                const isSpookyMessage = (sender === 'ai' && text.startsWith(spookyPrefix));
+                
+                 if (isSpookyMessage) {
+                    // Ak správa začína prefixom, zobrazíme ju so správnym HTML obalom
+                    displayMessage = `<span class="scary-message">${spookyPrefix}</span>\n\n${text.substring(spookyPrefix.length).trim()}`;
+                }
+
+
+                // Vytvorenie elementu
+                const alignment = sender === 'user' ? 'justify-end' : 'justify-start';
+                const bgColor = sender === 'user' ? 'bg-blue-500/80' : isSpecialAesthetic ? 'bg-red-800/40' : 'bg-blue-600/50';
+                const senderName = sender === 'user' ? (currentUserData?.nickname || 'Vy') : 'ChatSlovak AI V5 Model';
+                const roundStyle = sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none';
+                const specialStyle = isSpecialAesthetic ? 'border border-red-500 shadow-xl' : '';
+                const textColor = isSpecialAesthetic ? 'text-red-100' : (sender === 'user' ? 'text-white' : 'text-white');
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `flex ${alignment}`;
+                messageDiv.innerHTML = `
+                    <div class="${bgColor} glass-container p-4 rounded-xl ${roundStyle} max-w-3xl shadow-lg ${specialStyle} message-enter">
+                        <p class="font-bold text-blue-200">${senderName}</p>
+                        <div class="${textColor} mt-1 whitespace-pre-wrap">${displayMessage}</div>
+                    </div>
+                `;
+                chatArea.appendChild(messageDiv);
+            });
+
+            chatArea.scrollTop = chatArea.scrollHeight;
         }
 
         /**
@@ -1053,9 +1119,12 @@
             }
         }
 
-        async function callGeminiAPI(prompt, systemPrompt, tools, retries = 0) {
+        /**
+         * UPDATED: Teraz prijíma celú históriu konverzácie.
+         */
+        async function callGeminiAPI(history, systemPrompt, tools, retries = 0) {
             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
+                contents: history, // Používa sa celé pole histórie
                 systemInstruction: {
                     parts: [{ text: systemPrompt }]
                 },
@@ -1076,7 +1145,7 @@
                     if (response.status === 429 && retries < 3) {
                         const delay = Math.pow(2, retries) * 1000;
                         await new Promise(resolve => setTimeout(resolve, delay));
-                        return callGeminiAPI(prompt, systemPrompt, tools, retries + 1);
+                        return callGeminiAPI(history, systemPrompt, tools, retries + 1);
                     }
                     throw new Error(`API chyba: ${response.status} ${response.statusText}`);
                 }
@@ -1097,31 +1166,25 @@
 
             const inputElement = document.getElementById('chat-input');
             const sendButton = document.getElementById('send-button');
-            let message = inputElement.value; // Pôvodná správa od užívateľa
-            let processedMessage = inputElement.value.trim(); // Správa pre AI po spracovaní
+            let message = inputElement.value; 
+            let processedMessage = inputElement.value.trim(); 
             
             if (!processedMessage) return; 
 
-            // 1. Zobrazenie pôvodnej správy od užívateľa
+            // 1. Zobrazenie pôvodnej správy od užívateľa v UI
             createMessageElement('user', message);
             inputElement.value = '';
             
             inputElement.disabled = true;
             sendButton.disabled = true;
             
-            // 2. LOGIKA FILTROVANIA PRED ODOSLANÍM (Filtrovanie vstupu užívateľa)
-            // Tieto filtre ostávajú, aby AI nedostala pokyn s označeniami ** a ##
-            // Odstráni text začínajúci *
+            // 2. LOGIKA FILTROVANIA PRED ODOSLANÍM 
             if (processedMessage.includes('*')) {
                 processedMessage = processedMessage.replace(/\*.*$/, '').trim();
             }
-
-            // Odstráni text začínajúci ##
             if (processedMessage.includes('##')) {
                 processedMessage = processedMessage.replace(/##.*$/, '').trim();
             }
-            
-            // Odstráni presný reťazec "Text-Of-Speed" (case-insensitive)
             processedMessage = processedMessage.replace(/Text-Of-Speed/gi, '').trim();
 
             if (!processedMessage) {
@@ -1131,34 +1194,25 @@
                  inputElement.focus();
                  return;
             }
-            // KONIEC LOGIKY FILTROVANIA VSTUPU
             
             // 3. LOGIKA ŠPECIÁLNYCH REŽIMOV
             const isStoryRequest = processedMessage.toLowerCase().includes('príbeh');
             const now = new Date();
-            
-            // --- NOVÁ LOGIKA PRE HALLOWEEN (31. Október) ---
-            // Október je mesiac 9 (0-indexované)
-            const isSpookySeason = (now.getMonth() === 9 && now.getDate() === 31);
-            
-            // Prefix, ktorý si želal užívateľ (aktualizovaný text)
+            const isSpookySeason = (now.getMonth() === 9 && now.getDate() === 31); // 31. Október
             const creepyMessagePrefixText = "Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu"; 
             
             let fullPrompt = processedMessage;
             let isSpookyMessage = false;
-            let isSpecialAesthetic = isStoryRequest; // Estetika pre príbehy
+            let isSpecialAesthetic = isStoryRequest; 
 
             if (isSpookySeason && !isStoryRequest) {
-                // Ak je Halloween a NIE JE to požiadavka na príbeh, pridáme prefix do promptu.
                 fullPrompt = `Napíš pútavú odpoveď na toto: "${processedMessage}" (Zahrň do tónu pocit, akoby: ${creepyMessagePrefixText}).`; 
                 isSpookyMessage = true;
-                isSpecialAesthetic = true; // Zapneme spooky estetiku (červený štýl)
+                isSpecialAesthetic = true; 
             }
             
-            // 4. SYSTÉMOVÝ PRÍKAZ S NOVÝM OBMEDZENÍM
-            // OBMEDZENIE: Zákaz generovania ** a ##
+            // 4. SYSTÉMOVÝ PRÍKAZ A NÁSTROJE
             const OUTPUT_CONSTRAINT = "Tvoj výstup NESMIE obsahovať znak '*' (hviezdička) ani reťazec '##' (dve mriežky). Zabezpeč, aby odpovede boli úplne čisté od týchto symbolov. Ak máš písať príbeh, použi len obyčajný text a odseky, bez formátovania tučnými znakmi.";
-            
             let systemPrompt;
             let tools;
 
@@ -1166,21 +1220,33 @@
                 systemPrompt = `Si ChatSlovak AI V5 Model, v režime 'Rozsiahly Príbehový Generátor'. Tvojou úlohou je vygenerovať pútavý a dlhý príbeh (cca 250-400 slov). Zameraj sa na budovanie atmosféry, detailné opisy a pútavé postavy. Príbeh musí mať názov a musí byť rozsiahly. Odpovedaj výlučne v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [];
             } else {
-                systemPrompt = `Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine. ${OUTPUT_CONSTRAINT}`;
+                systemPrompt = `Si ChatSlovak AI V5 Model, moderný a ochotný konverzačný partner. Tvoj tón je profesionálny, priateľský a mierne moderný/štýlový. Tvoj kontext je celá doterajšia konverzácia. Odpovedaj na otázky presne a použi vedomosti z Google Search, ak sú potrebné. Odpovedaj v slovenčine. ${OUTPUT_CONSTRAINT}`;
                 tools = [{ "google_search": {} }];
             }
+            
+            // 5. PRIDANIE UŽÍVATEĽSKEJ SPRÁVY DO HISTÓRIE PRED VOLANÍM API
+            chatHistory.push({
+                role: "user",
+                parts: [{ text: fullPrompt }]
+            });
 
             const loadingMessageId = `loading-${Date.now()}`;
             addLoadingIndicator(loadingMessageId, isStoryRequest);
 
-            // Odoslanie už spracovanej správy
-            const geminiResult = await callGeminiAPI(fullPrompt, systemPrompt, tools);
+            // 6. VOLANIE API S CELOU HISTÓRIOU
+            const geminiResult = await callGeminiAPI(chatHistory, systemPrompt, tools);
 
             removeLoadingIndicator(loadingMessageId);
 
             let aiDisplayMessage = geminiResult.text;
             
-            // Ak je to spooky správa, pridáme prefix len k zobrazeniu (lebo prompt uz ho obsahoval)
+            // 7. PRIDANIE ODPOVEDE AI DO HISTÓRIE
+            chatHistory.push({
+                role: "model",
+                parts: [{ text: aiDisplayMessage }]
+            });
+
+            // 8. ZOBRAZENIE SPRÁVY AI V UI
             if (isSpookyMessage) {
                 // Pridanie prefixu priamo do zobrazenia s použitím CSS triedy
                 aiDisplayMessage = `<span class="scary-message">${creepyMessagePrefixText}</span>\n\n${aiDisplayMessage}`;
@@ -1202,7 +1268,6 @@
     </script>
 </body>
 </html>
-
 
 
 

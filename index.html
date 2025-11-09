@@ -945,17 +945,17 @@
                 
                 // Určenie, či použiť špeciálnu estetiku (pre AI správy, ktoré boli spooky alebo príbehy)
                 // Toto je heuristika, keďže pôvodná správa neuchováva flag isSpecialAesthetic
-                const isSpecialAesthetic = sender === 'ai' && (
-                    text.startsWith('Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu') || 
-                    text.length > 300 // Dlhé správy predpokladáme, že sú príbehy
-                );
+                const isStoryOrDeveloper = text.length > 300 || text.includes("GAMEPLA631"); 
                 
                 // Pre správne zobrazenie spooky prefixu v UI (bolo pridané len k UI textu, nie do histórie)
                 let displayMessage = text;
                 const spookyPrefix = "Pozor ! dnes je ten den ked sa niečo stane ver mi je to tu za chvíľu";
                 const isSpookyMessage = (sender === 'ai' && text.startsWith(spookyPrefix));
                 
-                 if (isSpookyMessage) {
+                const isSpecialAesthetic = isStoryOrDeveloper || isSpookyMessage;
+
+
+                if (isSpookyMessage) {
                     // Ak správa začína prefixom, zobrazíme ju so správnym HTML obalom
                     displayMessage = `<span class="scary-message">${spookyPrefix}</span>\n\n${text.substring(spookyPrefix.length).trim()}`;
                 }
@@ -1072,13 +1072,14 @@
             if (!chatArea) return; 
 
             const alignment = sender === 'user' ? 'justify-end' : 'justify-start';
-            // Špeciálny štýl (príbeh alebo spooky)
-            const bgColor = sender === 'user' ? 'bg-blue-500/80' : isSpecialAesthetic ? 'bg-red-800/40' : 'bg-blue-600/50';
+            // Špeciálny štýl (príbeh alebo spooky alebo pevná odpoveď o vývojárovi)
+            const isDeveloperResponse = sender === 'ai' && text.includes("GAMEPLA631");
+            const bgColor = sender === 'user' ? 'bg-blue-500/80' : isSpecialAesthetic || isDeveloperResponse ? 'bg-red-800/40' : 'bg-blue-600/50';
             const senderName = sender === 'user' ? (currentUserData?.nickname || 'Vy') : 'ChatSlovak AI V5 Model';
             const roundStyle = sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none';
-            const specialStyle = isSpecialAesthetic ? 'border border-red-500 shadow-xl' : '';
+            const specialStyle = isSpecialAesthetic || isDeveloperResponse ? 'border border-red-500 shadow-xl' : '';
             
-            const textColor = isSpecialAesthetic ? 'text-red-100' : (sender === 'user' ? 'text-white' : 'text-white');
+            const textColor = isSpecialAesthetic || isDeveloperResponse ? 'text-red-100' : (sender === 'user' ? 'text-white' : 'text-white');
 
             let formattedText = text;
             
@@ -1195,7 +1196,36 @@
                  return;
             }
             
-            // 3. LOGIKA ŠPECIÁLNYCH REŽIMOV
+            // --- NOVINKA: Špeciálna odpoveď pre otázku o vývojárovi ---
+            const normalizedQuery = processedMessage.toLowerCase();
+            const developerAnswer = "Spoločnosť GAMEPLA631";
+            const developerKeywords = ['kto ťa vyvinul', 'kto ťa stvoril', 'kto ťa vytvoril', 'kto ta vyrobil', 'developer', 'tvoj tvorca', 'vyvinul'];
+
+            const isDeveloperQuestion = developerKeywords.some(keyword => normalizedQuery.includes(keyword));
+
+            if (isDeveloperQuestion) {
+                
+                // 1. Pridanie užívateľskej správy do histórie
+                chatHistory.push({ role: "user", parts: [{ text: processedMessage }] });
+                
+                // 2. Pridanie AI odpovede do histórie
+                chatHistory.push({ role: "model", parts: [{ text: developerAnswer }] });
+                
+                // 3. Zobrazenie a hlasová odozva (špeciálna estetika sa aplikuje v createMessageElement, ak obsahuje GAMEPLA631)
+                createMessageElement('ai', developerAnswer);
+                speakText(developerAnswer);
+                
+                // 4. Reset UI
+                inputElement.disabled = false;
+                sendButton.disabled = false;
+                inputElement.focus();
+                
+                return; // Ukončiť funkciu a nevolat Gemini API
+            }
+            // --- Koniec NOVINKY ---
+
+            
+            // 4. LOGIKA ŠPECIÁLNYCH REŽIMOV
             const isStoryRequest = processedMessage.toLowerCase().includes('príbeh');
             const now = new Date();
             const isSpookySeason = (now.getMonth() === 9 && now.getDate() === 31); // 31. Október
@@ -1211,7 +1241,7 @@
                 isSpecialAesthetic = true; 
             }
             
-            // 4. SYSTÉMOVÝ PRÍKAZ A NÁSTROJE
+            // 5. SYSTÉMOVÝ PRÍKAZ A NÁSTROJE
             const OUTPUT_CONSTRAINT = "Tvoj výstup NESMIE obsahovať znak '*' (hviezdička) ani reťazec '##' (dve mriežky). Zabezpeč, aby odpovede boli úplne čisté od týchto symbolov. Ak máš písať príbeh, použi len obyčajný text a odseky, bez formátovania tučnými znakmi.";
             let systemPrompt;
             let tools;
@@ -1224,7 +1254,7 @@
                 tools = [{ "google_search": {} }];
             }
             
-            // 5. PRIDANIE UŽÍVATEĽSKEJ SPRÁVY DO HISTÓRIE PRED VOLANÍM API
+            // 6. PRIDANIE UŽÍVATEĽSKEJ SPRÁVY DO HISTÓRIE PRED VOLANÍM API
             chatHistory.push({
                 role: "user",
                 parts: [{ text: fullPrompt }]
@@ -1233,20 +1263,20 @@
             const loadingMessageId = `loading-${Date.now()}`;
             addLoadingIndicator(loadingMessageId, isStoryRequest);
 
-            // 6. VOLANIE API S CELOU HISTÓRIOU
+            // 7. VOLANIE API S CELOU HISTÓRIOU
             const geminiResult = await callGeminiAPI(chatHistory, systemPrompt, tools);
 
             removeLoadingIndicator(loadingMessageId);
 
             let aiDisplayMessage = geminiResult.text;
             
-            // 7. PRIDANIE ODPOVEDE AI DO HISTÓRIE
+            // 8. PRIDANIE ODPOVEDE AI DO HISTÓRIE
             chatHistory.push({
                 role: "model",
                 parts: [{ text: aiDisplayMessage }]
             });
 
-            // 8. ZOBRAZENIE SPRÁVY AI V UI
+            // 9. ZOBRAZENIE SPRÁVY AI V UI
             if (isSpookyMessage) {
                 // Pridanie prefixu priamo do zobrazenia s použitím CSS triedy
                 aiDisplayMessage = `<span class="scary-message">${creepyMessagePrefixText}</span>\n\n${aiDisplayMessage}`;
@@ -1268,6 +1298,5 @@
     </script>
 </body>
 </html>
-
 
 

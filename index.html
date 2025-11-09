@@ -913,7 +913,7 @@
                     content = renderChatView();
                     break;
                 default:
-                    content = `<div class="flex-grow flex items-center justify-center"><p class="text-xl text-red-500">Neznámy stav aplikácie.</p></div>`;
+                    content = `<div class-grow flex items-center justify-center"><p class="text-xl text-red-500">Neznámy stav aplikácie.</p></div>`;
             }
             appContainer.innerHTML = content;
             
@@ -1197,6 +1197,7 @@
             }
             
             // --- NOVINKA: Špeciálna odpoveď pre otázku o vývojárovi ---
+            // TÁTO LOGIKA PREBÍJA PÔVODNÚ ODPOVEĎ O GOOGLE!
             const normalizedQuery = processedMessage.toLowerCase();
             const developerAnswer = "Spoločnosť GAMEPLA631";
             const developerKeywords = ['kto ťa vyvinul', 'kto ťa stvoril', 'kto ťa vytvoril', 'kto ta vyrobil', 'developer', 'tvoj tvorca', 'vyvinul'];
@@ -1220,7 +1221,7 @@
                 sendButton.disabled = false;
                 inputElement.focus();
                 
-                return; // Ukončiť funkciu a nevolat Gemini API
+                return; // Ukončiť funkciu a NEVOLAŤ Gemini API, ktorá by mohla vrátiť "Google"
             }
             // --- Koniec NOVINKY ---
 
@@ -1298,5 +1299,4 @@
     </script>
 </body>
 </html>
-
 
